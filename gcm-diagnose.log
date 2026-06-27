@@ -1,0 +1,208 @@
+﻿Diagnose log at 2026-06-27T22:12:38Z
+
+AppPath: C:\Program Files\Git\mingw64\bin\git-credential-manager.exe
+InstallDir: C:\Program Files\Git\mingw64\bin\
+Version: 2.7.3+5fa7116896c82164996a609accd1c5ad90fe730a
+
+------------
+Diagnostic: Environment
+Skipped: False
+Success: True
+Exception: None
+Log:
+OSType: Windows
+OSVersion: 10.0 (build 26200)
+Reading environment variables... OK
+ Variables:
+SystemDrive=C:
+ProgramFiles(x86)=C:\Program Files (x86)
+MSYSTEM=MINGW64
+ProgramW6432=C:\Program Files
+ChocolateyInstall=C:\ProgramData\chocolatey
+PROCESSOR_IDENTIFIER=AMD64 Family 25 Model 124 Stepping 0, AuthenticAMD
+APPDATA=C:\Users\suvar\AppData\Roaming
+OnlineServices=Online Services
+PROCESSOR_ARCHITECTURE=AMD64
+VSCODE_GIT_ASKPASS_MAIN=c:\Users\suvar\AppData\Roaming\Code\User\globalStorage\vscode.git\askpass\70789581cae28aa7\askpass-main.js
+Path=C:/Program Files/Git/mingw64/libexec/git-core;C:\Program Files\Git\mingw64\bin;C:\Program Files\Git\usr\bin;C:\Users\suvar\bin;C:\windows\system32;C:\windows;C:\windows\System32\Wbem;C:\windows\System32\WindowsPowerShell\v1.0\;C:\windows\System32\OpenSSH\;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\NVIDIA Corporation\NVIDIA App\NvDLISR;C:\Users\Administrator\AppData\Local\Microsoft\WindowsApps;C:\Program Files\HP\OMEN-Broadcast\Common;C:\Program Files\nodejs\;C:\ProgramData\chocolatey\bin;C:\Program Files\Git\cmd;C:\Program Files\Docker\Docker\resources\bin;C:\Program Files\GitHub CLI\;C:\Users\suvar\AppData\Local\Microsoft\WindowsApps;C:\Users\suvar\AppData\Roaming\npm;C:\Users\suvar\AppData\Local\Programs\Microsoft VS Code\bin;C:\Users\suvar\AppData\Local\Microsoft\WinGet\Links
+E_DIVIN_GITHUB_PROJECT_TOKEN=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
+E_DIVIN_LOCAL_HANDOFF_ROOT=D:\E-Divin-Agents\.e-divin\handoffs
+E_DIVIN_ACTOR=jogdandsainath
+VSCODE_GIT_IPC_HANDLE=\\.\pipe\vscode-git-22f6db0d2f-sock
+PROCESSOR_REVISION=7c00
+TEMP=C:\Users\suvar\AppData\Local\Temp
+USERPROFILE=C:\Users\suvar
+GIT_TRACE2_PARENT_SID=da7b681b-f84f-4538-8687-788b6ae65b2f
+LOGONSERVER=\\SATVIK2DAIVIK
+E_DIVIN_LOCAL_RUNTIME_ROOT=D:\E-Divin-Agents\.e-divin\runtime
+USERNAME=suvar
+SystemRoot=C:\windows
+CHROME_CRASHPAD_PIPE_NAME=\\.\pipe\crashpad_21308_HBMHDXCCJFHFXRYE
+GIT_EXEC_PATH=C:/Program Files/Git/mingw64/libexec/git-core
+OS=Windows_NT
+PLINK_PROTOCOL=ssh
+SERVICE_SHARED_SECRET=06iOVdQrZWzD7BxnD1OzsZN5VCkxZj9ntT8FbTQqMdOkPzpI9fzFkTUZo4ykQ81u
+E_DIVIN_CURRENT_WAVE=planning-current
+OneDrive=C:\Users\suvar\OneDrive
+USERDOMAIN_ROAMINGPROFILE=SATVIK2DAIVIK
+VSCODE_NONCE=c183f67a-b25a-4e88-b57a-b9bc91781eef
+CommonProgramFiles=C:\Program Files\Common Files
+GITHUB_PROJECT_TITLE=E-Divin AI Fleet Command Center
+COLORTERM=truecolor
+PROCESSOR_LEVEL=25
+ProgramData=C:\ProgramData
+platformcode=M7
+GIT_ASKPASS=c:\Users\suvar\AppData\Roaming\Code\User\globalStorage\vscode.git\askpass\70789581cae28aa7\askpass.sh
+HOMEPATH=\Users\suvar
+AMDRMSDKPATH=C:\Program Files\AMD\RyzenMasterSDK\
+E_DIVIN_LOCAL_APPROVAL_ROOT=D:\E-Divin-Agents\.e-divin\approvals
+LANG=en_US.UTF-8
+ChocolateyLastPathUpdate=134238539821538572
+CommonProgramW6432=C:\Program Files\Common Files
+E_DIVIN_LOCAL_OUTBOX_ROOT=D:\E-Divin-Agents\.e-divin\outbox
+TMP=C:\Users\suvar\AppData\Local\Temp
+TERM=xterm-256color
+E_DIVIN_AGENT_SERVICE_URL=https://e-divin-agent-communication-service.vercel.app
+E_DIVIN_LOCAL_LOG_ROOT=D:\E-Divin-Agents\.e-divin\logs
+E_DIVIN_WORKSPACE_ROOT=D:\E-Divin-Agents
+DriverData=C:\Windows\System32\Drivers\DriverData
+HOMEDRIVE=C:
+windir=C:\windows
+GITHUB_OWNER=jogdandsainath
+VSCODE_GIT_ASKPASS_NODE=C:\Users\suvar\AppData\Local\Programs\Microsoft VS Code\Code.exe
+NUMBER_OF_PROCESSORS=12
+E_DIVIN_GITHUB_PROJECT_TOKEN_LAP2=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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
+ProgramFiles=C:\Program Files
+ComSpec=C:\windows\system32\cmd.exe
+E_DIVIN_REPOS_ROOT=D:\E-Divin-Agents
+E_DIVIN_LOCAL_INBOX_ROOT=D:\E-Divin-Agents\.e-divin\inbox
+PATHEXT=.COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC
+HOME=C:\Users\suvar
+PSModulePath=%ProgramFiles%\WindowsPowerShell\Modules;C:\windows\system32\WindowsPowerShell\v1.0\Modules
+ALLUSERSPROFILE=C:\ProgramData
+PROMPT=$P$G
+TMPDIR=C:\Users\suvar\AppData\Local\Temp
+E_DIVIN_CURRENT_WAVE_ROOT=D:\E-Divin-Agents\.e-divin\waves\planning-current
+E_DIVIN_LOCAL_EVIDENCE_ROOT=D:\E-Divin-Agents\.e-divin\evidence
+USERDOMAIN=SATVIK2DAIVIK
+COMPUTERNAME=SATVIK2DAIVIK
+LOCALAPPDATA=C:\Users\suvar\AppData\Local
+TERM_PROGRAM_VERSION=1.126.0
+CommonProgramFiles(x86)=C:\Program Files (x86)\Common Files
+DATABASE_URL=postgresql:\\//neondb_owner:npg_sFb36wpJnoPL@ep-divine-rice-aofu49oa-pooler.c-2.ap-southeast-1.aws.neon.tech\\/agent_communication?sslmode=require&channel_binding=require
+RegionCode=APJ
+PUBLIC=C:\Users\Public
+TERM_PROGRAM=vscode
+VSCODE_GIT_ASKPASS_EXTRA_ARGS=
+
+
+------------
+Diagnostic: File system
+Skipped: False
+Success: True
+Exception: None
+Log:
+Temporary directory is 'C:\Users\suvar\AppData\Local\Temp\'...
+Checking basic file I/O...
+Writing to temporary file 'C:\Users\suvar\AppData\Local\Temp\42674dabac1e8720a7ef6539'... OK
+Reading from temporary file 'C:\Users\suvar\AppData\Local\Temp\42674dabac1e8720a7ef6539'... OK
+Deleting temporary file 'C:\Users\suvar\AppData\Local\Temp\42674dabac1e8720a7ef6539'... OK
+Testing IFileSystem instance...
+UserHomePath: C:\Users\suvar
+UserDataDirectoryPath: C:\Users\suvar\.gcm
+GetCurrentDirectory(): C:\Users\suvar\Desktop\Pur2Divin\AI Teacher NFT
+
+------------
+Diagnostic: Networking
+Skipped: False
+Success: True
+Exception: None
+Log:
+Checking networking and HTTP stack...
+Creating HTTP client... OK
+IsNetworkAvailable: True
+Sending HEAD request to http://example.com...Sending HEAD request to https://example.com... OK
+ OK
+Acquiring free TCP port... OK
+Testing local HTTP loopback connections...
+Creating new HTTP listener for http://localhost:50316/... OK
+Waiting for loopback connection... OK
+Writing response... OK
+Waiting for response data... OK
+Loopback connection data OK
+
+------------
+Diagnostic: Git
+Skipped: False
+Success: True
+Exception: None
+Log:
+Getting Git version... OK
+Git version is '2.54.0.windows.1'
+Locating current repository...Git repository at 'C:/Users/suvar/Desktop/Pur2Divin/AI Teacher NFT/.git'
+ OK
+Listing all Git configuration... OK
+Git configuration:
+file:C:/Program Files/Git/etc/gitconfig	diff.astextplain.textconv=astextplain
+file:C:/Program Files/Git/etc/gitconfig	filter.lfs.clean=git-lfs clean -- %f
+file:C:/Program Files/Git/etc/gitconfig	filter.lfs.smudge=git-lfs smudge -- %f
+file:C:/Program Files/Git/etc/gitconfig	filter.lfs.process=git-lfs filter-process
+file:C:/Program Files/Git/etc/gitconfig	filter.lfs.required=true
+file:C:/Program Files/Git/etc/gitconfig	http.sslbackend=schannel
+file:C:/Program Files/Git/etc/gitconfig	core.autocrlf=true
+file:C:/Program Files/Git/etc/gitconfig	core.fscache=true
+file:C:/Program Files/Git/etc/gitconfig	core.symlinks=false
+file:C:/Program Files/Git/etc/gitconfig	pull.rebase=false
+file:C:/Program Files/Git/etc/gitconfig	credential.helper=manager
+file:C:/Program Files/Git/etc/gitconfig	credential.https://dev.azure.com.usehttppath=true
+file:C:/Program Files/Git/etc/gitconfig	init.defaultbranch=master
+file:C:/Users/suvar/.gitconfig	user.name=jogdandsainath
+file:C:/Users/suvar/.gitconfig	user.email=jogdandsainath@users.noreply.github.com
+file:C:/Users/suvar/.gitconfig	credential.helper=manager
+file:.git/config	core.repositoryformatversion=0
+file:.git/config	core.filemode=false
+file:.git/config	core.bare=false
+file:.git/config	core.logallrefupdates=true
+file:.git/config	core.symlinks=false
+file:.git/config	core.ignorecase=true
+file:.git/config	remote.origin.url=https://github.com/SuvarnaJogdand/AI_Teacher_NFT
+file:.git/config	remote.origin.fetch=+refs/heads/*:refs/remotes/origin/*
+file:.git/config	branch.main.remote=origin
+file:.git/config	branch.main.merge=refs/heads/main
+
+
+------------
+Diagnostic: Credential storage
+Skipped: False
+Success: True
+Exception: None
+Log:
+ICredentialStore instance is of type: CredentialStore
+Writing test credential... OK
+Reading test credential... OK
+Deleting test credential... OK
+
+------------
+Diagnostic: Microsoft authentication (AAD/MSA)
+Skipped: False
+Success: True
+Exception: None
+Log:
+Broker is not enabled.
+Flow type is: Auto
+Gathering MSAL token cache data... OK
+CacheDirectory: C:\Users\suvar\AppData\Local\.IdentityService
+CacheFileName: msal.cache
+CacheFilePath: C:\Users\suvar\AppData\Local\.IdentityService\msal.cache
+Creating cache helper... OK
+Verifying MSAL token cache persistence... OK
+
+------------
+Diagnostic: GitHub API
+Skipped: False
+Success: True
+Exception: None
+Log:
+Using 'https://github.com/' as API target.
+Querying '/meta' endpoint... OK
+
