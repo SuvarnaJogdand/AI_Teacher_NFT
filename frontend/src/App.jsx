@@ -9,7 +9,7 @@ import EditTeacher from "./pages/EditTeacher";
 import MyNFTs from "./pages/MyNFTs";
 import Login from "./pages/Login";
 import SubscriptionPage from "./pages/SubscriptionPage";
-import MySubscriptions from "./pages/MySubscriptionPage";
+import MySubscriptionPage from "./pages/MySubscriptionPage";
 
 function App() {
   return (

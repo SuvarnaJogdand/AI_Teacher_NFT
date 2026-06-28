@@ -54,6 +54,9 @@ abstract contract TeacherStorage {
     mapping(uint256 => uint256) public monthlySubscriptionPrice;
     mapping(uint256 => uint256) public yearlySubscriptionPrice;
     mapping(address => uint256[]) public userSubscriptions;
+    mapping(address => mapping(uint256 => bool)) public subscriptionExists;
+
+    
 
     // ERC721 functions implemented in AITeacherNFT.sol
 

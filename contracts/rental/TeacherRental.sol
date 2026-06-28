@@ -267,9 +267,15 @@ abstract contract TeacherRental is TeacherStorage {
 
         require(success, "Payment failed");
 
-        accessExpiry[tokenId][msg.sender] = block.timestamp + duration;
+        accessExpiry[tokenId][msg.sender] = subscriptionExpiry[tokenId][
+            msg.sender
+        ];
 
-        userSubscriptions[msg.sender].push(tokenId);
+        // Add subscription only once
+        if (!subscriptionExists[msg.sender][tokenId]) {
+            userSubscriptions[msg.sender].push(tokenId);
+            subscriptionExists[msg.sender][tokenId] = true;
+        }
 
         emit SubscriptionPurchased(
             tokenId,
@@ -297,5 +303,15 @@ abstract contract TeacherRental is TeacherStorage {
         address user
     ) external view returns (uint256[] memory) {
         return userSubscriptions[user];
+    }
+
+    // ----------------------------
+    // GET SUBSCRIPTION EXPIRY
+    // ----------------------------
+    function getSubscriptionExpiry(
+        uint256 tokenId,
+        address user
+    ) external view returns (uint256) {
+        return subscriptionExpiry[tokenId][user];
     }
 }
