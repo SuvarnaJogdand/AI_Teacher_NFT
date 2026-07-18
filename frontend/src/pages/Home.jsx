@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
-import TeacherCard from "../components/TeacherCard";
 import { ethers } from "ethers";
+import TeacherCard from "../components/TeacherCard";
+
 import abi from "../contracts/AITeacherNFT.json";
-import { CONTRACT_ADDRESS } from "../contracts/config";
+import { NFT_CONTRACT } from "../contracts/config";
+import { getMarketplaceContract, getRentalContract } from "../contracts/contracts";
 
 function Home() {
   const [teachers, setTeachers] = useState([]);
@@ -14,15 +16,17 @@ function Home() {
     loadTeachers();
   }, []);
 
-  const loadTeachers = async () => {
+  async function loadTeachers() {
+
     try {
       if (!window.ethereum) return;
+
 
       const provider =
         new ethers.BrowserProvider(window.ethereum);
 
       const contract = new ethers.Contract(
-        CONTRACT_ADDRESS,
+        NFT_CONTRACT,
         abi.abi,
         provider
       );
@@ -37,71 +41,90 @@ function Home() {
 
       const teachersData = [];
 
-      for (let i = 0; i < totalSupply; i++) {
-        console.log("Loading token:", i);
-
-        const [info, market, stats] =
-          await contract.getTeacher(i);
-
-        console.log("Info:", info);
-        console.log("Market:", market);
-        console.log("Stats:", stats);
-
-        const tokenURI =
-          await contract.tokenURI(i);
-
-        console.log("Token URI:", tokenURI);
-
-
-        let metadata = {};
-
+      for (
+        let tokenId = 1;
+        tokenId <= Number(totalSupply);
+        tokenId++
+      ) {
         try {
-          metadata = await fetch(tokenURI).then(
-            (res) => res.json()
-          );
+          const teacher =
+            await contract.getTeacher(tokenId);
+
+          const tokenURI =
+            await contract.tokenURI(tokenId);
+
+          console.log("TokenURI:", tokenURI);
+
+          const owner =
+            await contract.teacherOwner(tokenId);
+
+          const marketplace =
+            await getMarketplaceContract();
+
+          const rental =
+            await getRentalContract();
+
+          const listing =
+            await marketplace.getListing(tokenId);
+
+          const rentalInfo =
+            await rental.getRental(tokenId);
+
+          console.log("Listing:", listing);
+          console.log("Rental:", rentalInfo);
+
+          let metadata = {};
+          //console.log("TokenURI:", tokenURI);
+          try {
+            const response = await fetch(tokenURI);
+
+            console.log("Response status:", response.status);
+
+            metadata = await response.json();
+
+            console.log("Metadata:", metadata);
+          } catch (err) {
+            console.log("Metadata error:", err);
+          }
+
+          teachersData.push({
+            id: tokenId,
+            tokenId,
+
+            name: teacher.name,
+            subject: teacher.subject,
+            topic: teacher.topic,
+            specialization: teacher.specialization,
+
+            mintPrice:
+              teacher.mintPrice?.toString() || "0",
+
+            imageUrl: metadata.image || "",
+            description: metadata.description || "",
+
+            ownerWallet: owner,
+
+            forSale: listing[1],
+            salePrice: listing[0]
+              ? ethers.formatEther(listing[0])
+              : "0",
+
+            forRent: rentalInfo[1],
+            rentPricePerDay: rentalInfo[0]
+              ? ethers.formatEther(rentalInfo[0])
+              : "0",
+          });
         } catch (err) {
-          console.error(
-            "Metadata load failed:",
-            tokenURI
+          console.log(
+            "Skipping token",
+            tokenId,
+            err.message
           );
-
-          metadata = {
-            image: "",
-            description: "",
-          };
         }
-
-        const owner =
-          await contract.teacherOwner(i);
-
-        teachersData.push({
-          id: i,
-
-          name: info.name,
-          subject: info.subject,
-          topic: info.topic,
-          specialization: info.specialization,
-
-          experience: Number(stats.experience),
-          level: Number(stats.level),
-
-          price: ethers.formatEther(market.price),
-          forSale: market.forSale,
-
-          rentPricePerDay: ethers.formatEther(
-            market.rentPricePerDay
-          ),
-          forRent: market.forRent,
-
-          imageUrl: metadata.image,
-          description: metadata.description,
-
-          ownerWallet: owner,
-        });
       }
 
       console.log(
-        "Teachers Data:",
+        "Teachers Loaded:",
         teachersData
       );
 
@@ -112,28 +135,43 @@ function Home() {
         error
       );
     }
-  };
+
+
+  }
 
   const subjects = [
     "All",
     ...new Set(
-      teachers.map((teacher) => teacher.subject?.trim())
+      teachers.map(
+        (teacher) => teacher.subject
+      )
     ),
   ];
 
-  const filteredTeachers = teachers.filter((teacher) => {
-    const matchesSearch = teacher.name
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase());
+  const filteredTeachers =
+    teachers.filter((teacher) => {
+      const matchesSearch =
+        teacher.name
+          .toLowerCase()
+          .includes(
+            searchTerm.toLowerCase()
+          );
 
-    const matchesSubject =
-      selectedSubject === "All" ||
-      teacher.subject?.trim() === selectedSubject;
+      const matchesSubject =
+        selectedSubject === "All" ||
+        teacher.subject ===
+        selectedSubject;
 
-    return matchesSearch && matchesSubject;
-  });
+      return (
+        matchesSearch &&
+        matchesSubject
+      );
+    });
 
-  const sortedTeachers = [...filteredTeachers];
+
+  const sortedTeachers = [
+    ...filteredTeachers,
+  ];
 
   switch (sortBy) {
     case "name-asc":
@@ -142,6 +180,7 @@ function Home() {
       );
       break;
 
+
     case "name-desc":
       sortedTeachers.sort((a, b) =>
         b.name.localeCompare(a.name)
@@ -149,71 +188,23 @@ function Home() {
       break;
 
     case "oldest":
-      sortedTeachers.sort((a, b) => a.id - b.id);
+      sortedTeachers.sort(
+        (a, b) => a.id - b.id
+      );
       break;
 
     default:
-      sortedTeachers.sort((a, b) => b.id - a.id);
+      sortedTeachers.sort(
+        (a, b) => b.id - a.id
+      );
+
+
   }
 
-  const totalTeachers = teachers.length;
-
-  const mathTeachers = teachers.filter(
-    (teacher) =>
-      teacher.subject?.trim().toLowerCase() ===
-      "mathematics"
-  ).length;
-
-  const scienceTeachers = teachers.filter(
-    (teacher) =>
-      teacher.subject?.trim().toLowerCase() ===
-      "science"
-  ).length;
-
-  const englishTeachers = teachers.filter(
-    (teacher) =>
-      teacher.subject?.trim().toLowerCase() ===
-      "english"
-  ).length;
-  const artandcraftTeachers = teachers.filter(
-    (teacher) =>
-      teacher.subject?.trim().toLowerCase() ===
-      "art"
-  ).length;
-  const aiTeachers = teachers.filter(
-    (teacher) =>
-      teacher.subject?.trim().toLowerCase() ===
-      "ai"
-  ).length;
-  const ictTeachers = teachers.filter(
-    (teacher) =>
-      teacher.subject?.trim().toLowerCase() ===
-      "ict"
-  ).length;
-
-
-
-
   return (
-    <>
-      <div className="hero">
-        <h1>🎓 AI Teacher NFT Marketplace</h1>
-        <p>
-          Create, manage and explore AI Teacher NFTs
-        </p>
-      </div>
+    <> <div className="hero"> <h1>🎓 AI Teacher NFT Marketplace</h1> <p>
+      Create, manage and explore AI Teacher NFTs </p> </div>
 
-      <div className="stats-dashboard">
-        <h2>Teacher Statistics</h2>
-
-        <p>Total Teachers: {totalTeachers}</p>
-        <p>Mathematics: {mathTeachers}</p>
-        <p>Science: {scienceTeachers}</p>
-        <p>English: {englishTeachers}</p>
-        <p>Art and Craft: {artandcraftTeachers}</p>
-        <p>AI: {aiTeachers}</p>
-        <p>ICT: {ictTeachers}</p>
-      </div>
 
       <div className="filters">
         <input
@@ -228,7 +219,9 @@ function Home() {
         <select
           value={selectedSubject}
           onChange={(e) =>
-            setSelectedSubject(e.target.value)
+            setSelectedSubject(
+              e.target.value
+            )
           }
         >
           {subjects.map((subject) => (
@@ -269,15 +262,19 @@ function Home() {
         <p>No AI Teachers found.</p>
       ) : (
         <div className="teacher-grid">
-          {sortedTeachers.map((teacher) => (
-            <TeacherCard
-              key={teacher.id}
-              teacher={teacher}
-            />
-          ))}
+          {sortedTeachers.map(
+            (teacher) => (
+              <TeacherCard
+                key={teacher.id}
+                teacher={teacher}
+              />
+            )
+          )}
         </div>
       )}
     </>
+
+
   );
 }
 

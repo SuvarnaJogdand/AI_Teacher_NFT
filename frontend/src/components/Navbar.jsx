@@ -20,6 +20,14 @@ function Navbar() {
         <Link to="/my-subscriptions">
           My Subscriptions
         </Link>
+
+        <Link to="/my-rentals">
+          My Rentals
+        </Link>
+
+        <Link to="/country">
+          Country
+        </Link>
       </div>
 
       <WalletButton />

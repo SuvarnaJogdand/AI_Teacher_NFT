@@ -31,62 +31,67 @@ export const WalletProvider = ({ children }) => {
       setChainId(Number(network.chainId));
       localStorage.removeItem("walletDisconnected");
 
-      await switchToAmoy();
+      // await switchToAmoy();
     } catch (error) {
       console.error(error);
     }
   };
 
-  const switchToAmoy = async () => {
-    try {
-      await window.ethereum.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: "0x13882" }], // 80002
-      });
-    } catch (error) {
-      if (error.code === 4902) {
-        await window.ethereum.request({
-          method: "wallet_addEthereumChain",
-          params: [
-            {
-              chainId: "0x13882",
-              chainName: "Polygon Amoy",
-              nativeCurrency: {
-                name: "POL",
-                symbol: "POL",
-                decimals: 18,
-              },
-              rpcUrls: ["https://rpc-amoy.polygon.technology"],
-              blockExplorerUrls: [
-                "https://amoy.polygonscan.com/",
-              ],
-            },
-          ],
-        });
-      }
-    }
+  // const switchToAmoy = async () => {
+  //   try {
+  //     await window.ethereum.request({
+  //       method: "wallet_switchEthereumChain",
+  //       params: [{ chainId: "0x13882" }], // 80002
+  //     });
+  //   } catch (error) {
+  //     if (error.code === 4902) {
+  //       await window.ethereum.request({
+  //         method: "wallet_addEthereumChain",
+  //         params: [
+  //           {
+  //             chainId: "0x13882",
+  //             chainName: "Polygon Amoy",
+  //             nativeCurrency: {
+  //               name: "POL",
+  //               symbol: "POL",
+  //               decimals: 18,
+  //             },
+  //             rpcUrls: ["https://rpc-amoy.polygon.technology"],
+  //             blockExplorerUrls: [
+  //               "https://amoy.polygonscan.com/",
+  //             ],
+  //           },
+  //         ],
+  //       });
+  //     }
+  //   }
+  // };
+
+  const disconnectWallet = () => {
+    console.log("Disconnect clicked");
+
+    localStorage.setItem(
+      "walletDisconnected",
+      "true"
+    );
+
+    setWalletAddress("");
+    setSigner(null);
+    setProvider(null);
+    setChainId(null);
+
+    // Force UI update
+    window.location.reload();
   };
 
- const disconnectWallet = () => {
-  localStorage.setItem(
-    "walletDisconnected",
-    "true"
-  );
-
-  setWalletAddress("");
-  setSigner(null);
-  setProvider(null);
-  setChainId(null);
-};
-
- const checkConnection = async () => {
-  if (
-    localStorage.getItem(
-      "walletDisconnected"
-    ) === "true"
-  ) {
-    return;
-  }
+  const checkConnection = async () => {
+    if (
+      localStorage.getItem(
+        "walletDisconnected"
+      ) === "true"
+    ) {
+      return;
+    }
     if (!window.ethereum) return;
 
     const accounts = await window.ethereum.request({
@@ -114,26 +119,26 @@ export const WalletProvider = ({ children }) => {
 
     if (window.ethereum) {
       window.ethereum.on("accountsChanged", async (accounts) => {
-  if (accounts.length > 0) {
-    const provider =
-      new ethers.BrowserProvider(
-        window.ethereum
-      );
+        if (accounts.length > 0) {
+          const provider =
+            new ethers.BrowserProvider(
+              window.ethereum
+            );
 
-    const signer =
-      await provider.getSigner();
+          const signer =
+            await provider.getSigner();
 
-    setWalletAddress(
-      accounts[0]
-    );
+          setWalletAddress(
+            accounts[0]
+          );
 
-    setSigner(signer);
-    setProvider(provider);
+          setSigner(signer);
+          setProvider(provider);
 
-  } else {
-    disconnectWallet();
-  }
-});
+        } else {
+          disconnectWallet();
+        }
+      });
 
       window.ethereum.on("chainChanged", () => {
         window.location.reload();
@@ -144,12 +149,12 @@ export const WalletProvider = ({ children }) => {
   return (
     <WalletContext.Provider
       value={{
-  walletAddress,
-  signer,
-  provider,
-  connectWallet,
-  disconnectWallet,
-}}
+        walletAddress,
+        signer,
+        provider,
+        connectWallet,
+        disconnectWallet,
+      }}
     >
       {children}
     </WalletContext.Provider>

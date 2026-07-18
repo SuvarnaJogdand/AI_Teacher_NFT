@@ -58,7 +58,7 @@ export const mintTeacherNFT = async (
 
     // Contract
     const contract = new ethers.Contract(
-      process.env.CONTRACT_ADDRESS,
+      process.env.NFT_CONTRACT,
       contractABI.abi,
       wallet
     );

@@ -5,7 +5,7 @@ import TeacherCard from "../components/TeacherCard";
 import { useWallet } from "../context/WalletContext";
 
 import abi from "../contracts/AITeacherNFT.json";
-import { CONTRACT_ADDRESS } from "../contracts/config";
+import { NFT_CONTRACT } from "../contracts/config";
 
 function MyNFTs() {
   const { signer, walletAddress } = useWallet();
@@ -25,7 +25,7 @@ function MyNFTs() {
       }
 
       const contract = new ethers.Contract(
-        CONTRACT_ADDRESS,
+        NFT_CONTRACT,
         abi.abi,
         signer
       );

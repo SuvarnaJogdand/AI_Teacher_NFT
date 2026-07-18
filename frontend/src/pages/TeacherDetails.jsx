@@ -4,12 +4,14 @@ import { ethers } from "ethers";
 
 import { useWallet } from "../context/WalletContext";
 import abi from "../contracts/AITeacherNFT.json";
-import { CONTRACT_ADDRESS } from "../contracts/config";
+import { NFT_CONTRACT } from "../contracts/config";
+import { getMarketplaceContract, getRentalContract, getSubscriptionContract } from "../contracts/contracts";
 
 function TeacherDetails() {
   const { id } = useParams();
 
   const { signer } = useWallet();
+
 
   const [teacher, setTeacher] = useState(null);
   const [salePrice, setSalePrice] = useState("");
@@ -22,6 +24,7 @@ function TeacherDetails() {
   const [monthlyPrice, setMonthlyPrice] = useState("");
   const [yearlyPrice, setYearlyPrice] = useState("");
 
+
   useEffect(() => {
     loadTeacher();
     checkSubscription();
@@ -32,27 +35,18 @@ function TeacherDetails() {
       if (!signer) return;
 
       const contract = new ethers.Contract(
-        CONTRACT_ADDRESS,
+        NFT_CONTRACT,
         abi.abi,
         signer
       );
 
-      const [info, market, stats] =
+      const teacherData =
         await contract.getTeacher(id);
 
-      console.log("Market Data:");
-      console.log("Price:", market.price);
-      console.log("For Sale:", market.forSale);
-      console.log("Rent Price:", market.rentPricePerDay);
-      console.log("For Rent:", market.forRent);
-
-      console.log("Info:", info);
-      console.log("Market:", market);
-      console.log("Stats:", stats);
+      await loadSubscriptionPrices(Number(id));
 
       const owner =
         await contract.teacherOwner(id);
-      console.log("Owner:", owner);
 
       const skills =
         await contract.getSkills(id);
@@ -62,34 +56,64 @@ function TeacherDetails() {
 
       setAccount(walletAddress);
 
+      const marketplace =
+        await getMarketplaceContract();
+
+      const listing =
+        await marketplace.getListing(Number(id));;
+
+      console.log("Listing:", listing);
+      console.log("Listing Active:", listing.active);
+      console.log("Listing Price:", listing.price?.toString());
+
+      console.log("Teacher Data:", teacherData);
+console.log("Experience:", teacherData.experience);
+
+      const rental =
+        await getRentalContract();
+
+      const rentalInfo =
+        await rental.getRental(id);
+
+      console.log(
+        "Rental Active:",
+        rentalInfo.active
+      );
+
+      console.log("Rental Info:", rentalInfo);
+      console.log("Listing:", listing);
+
+      console.log(
+        rentalInfo?.rentPricePerDay?.toString?.()
+      );
+
       setTeacher({
         tokenId: Number(id),
 
-        name: info.name,
-        subject: info.subject,
-        topic: info.topic,
-        specialization: info.specialization,
-
-        experience: Number(stats.experience),
-        level: Number(stats.level),
-
+        name: teacherData.name,
+        subject: teacherData.subject,
+        topic: teacherData.topic,
+        specialization: teacherData.specialization,
+        experience: teacherData.experience,
         price: ethers.formatEther(
-          market.price
+          teacherData.mintPrice
         ),
-
-        rawPrice: market.price,
-
-
-
-        forSale: market.forSale,
-        forRent: market.forRent,
-        rentPricePerDay: ethers.formatEther(
-          market.rentPricePerDay
-        ),
-
 
         owner,
         skills,
+
+        forSale: listing.active,
+
+        salePrice: listing.price
+          ? ethers.formatEther(listing.price)
+          : "0",
+
+        forRent: Boolean(rentalInfo[1]),
+
+        rentPricePerDay:
+          rentalInfo[0]
+            ? ethers.formatEther(rentalInfo[0])
+            : "0",
       });
     } catch (error) {
       console.error(error);
@@ -98,24 +122,47 @@ function TeacherDetails() {
     }
   };
 
+  const loadSubscriptionPrices = async (tokenId) => {
+    try {
+      const subscriptionContract =
+        await getSubscriptionContract();
+
+      const plan =
+        await subscriptionContract.getPlan(tokenId);
+
+      setMonthlyPrice(
+        ethers.formatEther(plan.monthlyPrice)
+      );
+
+      setYearlyPrice(
+        ethers.formatEther(plan.yearlyPrice)
+      );
+
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+
   const checkSubscription = async () => {
     try {
       if (!signer) return;
 
-      const contract = new ethers.Contract(
-        CONTRACT_ADDRESS,
-        abi.abi,
-        signer
-      );
+      const subscriptionContract =
+        await getSubscriptionContract();
+
+
 
       const walletAddress =
         await signer.getAddress();
 
       const active =
-        await contract.hasSubscription(
+        await subscriptionContract.hasSubscription(
           id,
           walletAddress
         );
+
+
 
       setSubscriptionActive(active);
 
@@ -124,123 +171,55 @@ function TeacherDetails() {
     }
   };
 
-
-
-
-
   const listForSale = async () => {
     try {
+      if (!salePrice || Number(salePrice) <= 0) {
+        alert("Please enter a valid sale price");
+        return;
+      }
 
-      console.log(
-        "Teacher Owner:",
-        teacher?.owner
-      );
-
-      console.log(
-        "Token ID:",
-        teacher?.tokenId
-      );
-
-      console.log(
-        "Connected Wallet:",
-        await signer.getAddress()
-      );
-
-      console.log(
-        "Token ID:",
-        teacher.tokenId
-      );
-
-      console.log(
-        "Sale Price:",
-        salePrice
-      );
-
-      const contract =
-        new ethers.Contract(
-          CONTRACT_ADDRESS,
-          abi.abi,
-          signer
-        );
+      const marketplace =
+        await getMarketplaceContract();
 
       const tx =
-        await contract.listForSale(
+        await marketplace.listNFT(
           teacher.tokenId,
-          ethers.parseEther(
-            salePrice
-          )
+          ethers.parseEther(salePrice)
         );
+
+      console.log("Listing TX:", tx.hash);
+
+      const receipt = await tx.wait();
+
+      console.log("Receipt:", receipt);
 
       await tx.wait();
 
-      alert(
-        "NFT listed successfully"
-      );
+      alert("NFT listed for sale");
 
       loadTeacher();
-
     } catch (err) {
-
-
-      console.error(
-        "Teacher Load Error:",
-        err
-      );
-
-      console.error(
-        "FULL ERROR:",
-        err
-      );
-
-      console.log(
-        "REASON:",
-        err.reason
-      );
-
-      console.log(
-        "SHORT MESSAGE:",
-        err.shortMessage
-      );
-
-      console.log(
-        "MESSAGE:",
-        err.message
-      );
+      console.error(err);
     }
   };
 
   const listForRent = async () => {
     try {
+      if (!rentPrice || Number(rentPrice) <= 0) {
+        alert("Enter rent price");
+        return;
+      }
 
-      console.log("Button clicked");
-      console.log("Signer:", signer);
-      console.log("TokenId:", teacher.tokenId);
-      console.log("Rent Price:", rentPrice);
-
-      const contract =
-        new ethers.Contract(
-          CONTRACT_ADDRESS,
-          abi.abi,
-          signer
-        );
-
-      console.log(
-        abi.abi.find(
-          item => item.name === "listForRent"
-        )
-      );
-
-      console.log(
-        contract.listForRent
-      );
+      const rental =
+        await getRentalContract();
 
       const tx =
-        await contract.listForRent(
+        await rental.listForRent(
           teacher.tokenId,
-          ethers.parseEther(rentPrice)
+          ethers.parseEther(
+            rentPrice.toString()
+          )
         );
-
-      console.log("Transaction sent");
 
       await tx.wait();
 
@@ -249,55 +228,32 @@ function TeacherDetails() {
       loadTeacher();
 
     } catch (err) {
-      console.error("FULL ERROR:", err);
-      console.log("Reason:", err.reason);
-      console.log("Short Message:", err.shortMessage);
+      console.error(err);
     }
   };
 
   const setSubscriptionPrice = async () => {
     try {
+      if (!monthlyPrice || !yearlyPrice) {
+        alert("Enter both monthly and yearly prices");
+        return;
+      }
 
-      const contract =
-        new ethers.Contract(
-          CONTRACT_ADDRESS,
-          abi.abi,
-          signer
-        );
+      const subscriptionContract =
+        await getSubscriptionContract();
 
       const tx =
-        await contract.setSubscriptionPrice(
+        await subscriptionContract.setSubscriptionPrice(
           teacher.tokenId,
-          ethers.parseEther(monthlyPrice),
-          ethers.parseEther(yearlyPrice)
+          ethers.parseEther(monthlyPrice.toString()),
+          ethers.parseEther(yearlyPrice.toString())
         );
 
       await tx.wait();
 
-      // Verify saved values
-      const monthly =
-        await contract.monthlySubscriptionPrice(
-          teacher.tokenId
-        );
+      alert("Subscription prices updated");
 
-      const yearly =
-        await contract.yearlySubscriptionPrice(
-          teacher.tokenId
-        );
-
-      console.log(
-        "Saved Monthly:",
-        ethers.formatEther(monthly)
-      );
-
-      console.log(
-        "Saved Yearly:",
-        ethers.formatEther(yearly)
-      );
-
-      alert(
-        "Subscription prices updated"
-      );
+      loadSubscriptionPrices(teacher.tokenId);
 
     } catch (err) {
       console.error(err);
@@ -306,15 +262,11 @@ function TeacherDetails() {
 
   const cancelSale = async () => {
     try {
-      const contract =
-        new ethers.Contract(
-          CONTRACT_ADDRESS,
-          abi.abi,
-          signer
-        );
+      const marketplace =
+        await getMarketplaceContract();
 
       const tx =
-        await contract.cancelSale(
+        await marketplace.cancelListing(
           teacher.tokenId
         );
 
@@ -328,23 +280,25 @@ function TeacherDetails() {
 
   const buyNFT = async () => {
     try {
-      const contract =
-        new ethers.Contract(
-          CONTRACT_ADDRESS,
-          abi.abi,
-          signer
+      const marketplace =
+        await getMarketplaceContract();
+
+      const listing =
+        await marketplace.getListing(
+          teacher.tokenId
         );
 
       const tx =
-        await contract.buyNFT(
+        await marketplace.buyNFT(
           teacher.tokenId,
           {
-            value:
-              teacher.rawPrice,
+            value: listing.price
           }
         );
 
       await tx.wait();
+
+      alert("NFT purchased successfully");
 
       loadTeacher();
     } catch (err) {
@@ -355,20 +309,18 @@ function TeacherDetails() {
   const rentNFT = async () => {
     try {
 
-      const contract =
-        new ethers.Contract(
-          CONTRACT_ADDRESS,
-          abi.abi,
-          signer
-        );
+      const rental =
+        await getRentalContract();
 
       const totalRent =
         Number(
           teacher.rentPricePerDay
         ) * daysCount;
 
+
+
       const tx =
-        await contract.rentTeacher(
+        await rental.rentTeacher(
           teacher.tokenId,
           daysCount,
           {
@@ -378,10 +330,11 @@ function TeacherDetails() {
               )
           }
         );
-
       await tx.wait();
 
-      alert("NFT rented");
+      alert("NFT rented successfully");
+
+      loadTeacher();
 
     } catch (err) {
       console.error(err);
@@ -411,9 +364,16 @@ function TeacherDetails() {
     );
   }
 
-  console.log("forSale:", teacher?.forSale);
-  console.log("owner:", teacher?.owner);
-  console.log("account:", account);
+  console.log("Teacher Owner:", teacher?.owner);
+  console.log("Connected Account:", account);
+
+  console.log(
+    "Owner Match:",
+    teacher?.owner?.toLowerCase() ===
+    account?.toLowerCase()
+  );
+
+
 
   return (
     <div className="container">
@@ -435,29 +395,40 @@ function TeacherDetails() {
         <h3>Owner Wallet</h3>
         <p>{teacher.owner}</p>
 
-        <h3>Price</h3>
+        <h3>NFT Price</h3>
         <p>{teacher.price} POL</p>
+
+        <h3>Subscription Prices</h3>
+
+        <p>
+          Monthly: {monthlyPrice} POL
+        </p>
+
+        <p>
+          Yearly: {yearlyPrice} POL
+        </p>
 
         <h3>Status</h3>
 
-        <p>
+        {/* <p>
           Sale:
           {teacher.forSale
             ? " For Sale"
             : " Not For Sale"}
+        </p> */}
+
+        <p>
+          Sale Status:
+          {teacher.forSale
+            ? `🟢 For Sale (${teacher.salePrice} POL)`
+            : "🔴 Not For Sale"}
         </p>
 
         <p>
-          Rent:
+          Rent Status:
           {teacher.forRent
-            ? " For Rent"
-            : " Not For Rent"}
-        </p>
-
-        <p>
-          Rent Price:
-          {teacher.rentPricePerDay}
-          POL/day
+            ? `🟢 For Rent (${teacher.rentPricePerDay} POL/day)`
+            : "🔴 Not For Rent"}
         </p>
 
         <p>
@@ -467,16 +438,10 @@ function TeacherDetails() {
             : " Not Active"}
         </p>
 
-        <p>
-          Subscription:
-          {subscriptionActive
-            ? " Active"
-            : " Not Active"}
-        </p>
 
         <h3>Skills</h3>
 
-        {teacher.skills.length === 0 ? (
+        {!teacher.skills || teacher.skills.length === 0 ? (
           <p>No skills added yet</p>
         ) : (
           <ul>
@@ -492,60 +457,10 @@ function TeacherDetails() {
 
         <br />
 
-        <hr />
-
-        <h3>Marketplace</h3>
-
-        <div className="input-group">
-          <input
-            type="number"
-            step="0.01"
-            placeholder="Enter price in POL"
-            value={salePrice}
-            onChange={(e) => setSalePrice(e.target.value)}
-          />
-
-          <input
-            type="number"
-            step="0.01"
-            placeholder="Rent price/day"
-            value={rentPrice}
-            onChange={(e) => setRentPrice(e.target.value)}
-          />
-
-          <input
-            type="number"
-            step="0.01"
-            placeholder="Monthly Price (POL)"
-            value={monthlyPrice}
-            onChange={(e) => setMonthlyPrice(e.target.value)}
-          />
-
-          <input
-            type="number"
-            step="0.01"
-            placeholder="Yearly Price (POL)"
-            value={yearlyPrice}
-            onChange={(e) => setYearlyPrice(e.target.value)}
-          />
-        </div>
-
-        {/* {teacher.owner?.toLowerCase() === account?.toLowerCase() && (
-          <>
-            <button onClick={setSubscriptionPrice}>
-              Set Subscription Price
-            </button>
-            <br />
-            <br />
-          </>
-        )} */}
-
         <div style={{ textAlign: "center", marginTop: "20px" }}>
           {teacher.owner?.toLowerCase() === account?.toLowerCase() && (
             <>
-              <button onClick={setSubscriptionPrice}>
-                Set Subscription Price
-              </button>
+
               <br />
               <br />
             </>
@@ -557,17 +472,38 @@ function TeacherDetails() {
         <br />
 
         <div className="button-group">
-          <button onClick={listForSale}>
-            List For Sale
-          </button>
+          {teacher.owner?.toLowerCase() === account?.toLowerCase() && (
 
-          <button onClick={listForRent}>
-            List For Rent
-          </button>
+            <>
 
-          <button onClick={cancelSale}>
-            Cancel Sale
-          </button>
+              <input
+                type="number"
+                placeholder="Sale Price (POL)"
+                value={salePrice}
+                onChange={(e) => setSalePrice(e.target.value)}
+              />
+              <button onClick={listForSale}>
+                List For Sale
+              </button>
+
+              <input
+                type="number"
+                placeholder="Rent Price Per Day (POL)"
+                value={rentPrice}
+                onChange={(e) =>
+                  setRentPrice(e.target.value)
+                }
+              />
+
+              <button onClick={listForRent}>
+                List For Rent
+              </button>
+
+              <button onClick={cancelSale}>
+                Cancel Sale
+              </button>
+            </>
+          )}
         </div>
 
         <div className="button-group"></div>
@@ -581,7 +517,7 @@ function TeacherDetails() {
             </button>
           )
         }
-         
+
 
         {
           teacher.forRent &&

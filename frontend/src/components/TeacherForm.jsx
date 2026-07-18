@@ -2,11 +2,14 @@ import { useState, useEffect } from "react";
 import { useWallet } from "../context/WalletContext";
 import { ethers } from "ethers";
 import abi from "../contracts/AITeacherNFT.json";
-import { CONTRACT_ADDRESS } from "../contracts/config";
-import { uploadImageToIPFS, uploadMetadataToIPFS,} from "../utils/ipfs";
+import { NFT_CONTRACT } from "../contracts/config";
+import { getSubscriptionContract, } from "../contracts/contracts";
+import { uploadImageToIPFS, uploadMetadataToIPFS, } from "../utils/pinata";
 
 function TeacherForm({ existingTeacher = null }) {
   const { walletAddress, signer } = useWallet();
+  const [monthlyPrice, setMonthlyPrice] = useState("");
+  const [yearlyPrice, setYearlyPrice] = useState("");
 
   const [teacher, setTeacher] = useState({
     name: "",
@@ -18,6 +21,13 @@ function TeacherForm({ existingTeacher = null }) {
   const [previewUrl, setPreviewUrl] = useState("");
   const [imageFile, setImageFile] = useState(null);
   const [price, setPrice] = useState("");
+
+  useEffect(() => {
+    console.log(
+      "PINATA JWT:",
+      import.meta.env.VITE_PINATA_JWT
+    );
+  }, []);
 
 
   useEffect(() => {
@@ -65,67 +75,110 @@ function TeacherForm({ existingTeacher = null }) {
       return;
     }
 
+    const imageUrl =
+      await uploadImageToIPFS(imageFile);
+
+    const metadataURI =
+      await uploadMetadataToIPFS(
+        teacher,
+        imageUrl
+      );
+
+    console.log("Image URL:", imageUrl);
+    console.log("Metadata URI:", metadataURI);
+
     try {
       const contract = new ethers.Contract(
-        CONTRACT_ADDRESS,
+        NFT_CONTRACT,
         abi.abi,
         signer
       );
 
-      
+      console.log("Contract address:", NFT_CONTRACT);
+      console.log("getTotalSupply:", contract.getTotalSupply);
 
-      const imageUrl =
-         await uploadImageToIPFS(imageFile);
+      //console.log(contract);
+      console.log("Address:", NFT_CONTRACT);
+      console.log("getTotalSupply exists:", typeof contract.getTotalSupply);
 
-      const metadataURI =
-           await uploadMetadataToIPFS(
-           teacher,
-           imageUrl
-  );
 
-  
 
-  if (!price || Number(price) < 0.0001) {
-  alert("Minimum NFT price is 0.0001 POL");
-  return;
-}
+      // const imageUrl =
+      //   await uploadImageToIPFS(imageFile);
 
-const tx = await contract.mintTeacher(
-  walletAddress,
-  teacher.name,
-  teacher.subject,
-  teacher.description,
-  teacher.experience,
-  metadataURI,
-  ethers.parseEther(price.toString())
-);
+      // const metadataURI =
+      //   await uploadMetadataToIPFS(
+      //     teacher,
+      //     imageUrl
+      //   );
 
-alert("Waiting for confirmation...");
+      const metadataURI = "";
+      console.log(metadataURI);
 
-await tx.wait();
+      console.log("Image URL:", imageUrl);
 
-      // const teacherData = {
-      //   id: Date.now(),
-      //   name: teacher.name,
-      //   subject: teacher.subject,
-      //   description: teacher.description,
-      //   experience: teacher.experience,
-      //   imageUrl: previewUrl,
-      //   ownerWallet: walletAddress,
-      //   createdAt: new Date().toISOString(),
-      // };
+      console.log("Minting NFT...");
+      console.log("Name:", teacher.name);
+      console.log("Subject:", teacher.subject);
+      console.log("Description:", teacher.description);
+      console.log("Experience:", teacher.experience);
+      console.log("Metadata URI:", metadataURI);
 
-      // const teachers =
-      //   JSON.parse(localStorage.getItem("teachers")) || [];
 
-      // teachers.push(teacherData);
+      if (!price || Number(price) < 0.0001) {
+        alert("Minimum NFT price is 0.0001 POL");
+        return;
+      }
 
-      // localStorage.setItem(
-      //   "teachers",
-      //   JSON.stringify(teachers)
-      // );
+      const tx = await contract.mintTeacher(
+        walletAddress,
+        teacher.name,
+        teacher.subject,
+        teacher.description,
+        teacher.experience,
+        metadataURI,
+        ethers.parseEther(price.toString())
+      );
 
-      await tx.wait();
+      alert("Waiting for confirmation...");
+
+      const receipt = await tx.wait();
+
+      const mintEvent = receipt.logs.find((log) => {
+        try {
+          const parsed =
+            contract.interface.parseLog(log);
+
+          return parsed.name === "TeacherMinted";
+        } catch {
+          return false;
+        }
+      });
+
+      const parsed =
+        contract.interface.parseLog(mintEvent);
+
+      const tokenId =
+        Number(parsed.args.tokenId);
+
+      console.log("Minted TokenId:", tokenId);
+
+      //     const tokenURI =
+      // await contract.tokenURI(tokenId);
+
+      // Set subscription prices
+
+      const subscriptionContract =
+        await getSubscriptionContract();
+
+      const subTx =
+        await subscriptionContract.setSubscriptionPrice(
+          tokenId,
+          ethers.parseEther(monthlyPrice || "0"),
+          ethers.parseEther(yearlyPrice || "0")
+        );
+
+      await subTx.wait();
 
       alert("AI Teacher NFT Minted!");
 
@@ -136,13 +189,17 @@ await tx.wait();
         experience: "",
       });
 
-     setPreviewUrl("");
-     setPrice("");
+      setPreviewUrl("");
+      setPrice("");
     } catch (error) {
       console.error(error);
       alert("Mint failed");
     }
   };
+
+
+
+
 
   return (
     <form onSubmit={handleSubmit}>
@@ -199,13 +256,31 @@ await tx.wait();
       </div>
 
       <input
-  type="number"
-  placeholder="NFT Price (POL)"
-  value={price}
-  onChange={(e) =>
-    setPrice(e.target.value)
-  }
-/>
+        type="number"
+        placeholder="NFT Price (POL)"
+        value={price}
+        onChange={(e) =>
+          setPrice(e.target.value)
+        }
+      />
+
+      <input
+        type="number"
+        placeholder="Monthly Subscription Price (POL)"
+        value={monthlyPrice}
+        onChange={(e) =>
+          setMonthlyPrice(e.target.value)
+        }
+      />
+
+      <input
+        type="number"
+        placeholder="Yearly Subscription Price (POL)"
+        value={yearlyPrice}
+        onChange={(e) =>
+          setYearlyPrice(e.target.value)
+        }
+      />
 
       {previewUrl && (
         <div style={{ marginTop: "15px" }}>

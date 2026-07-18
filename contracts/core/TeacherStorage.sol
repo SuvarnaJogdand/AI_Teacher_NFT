@@ -1,10 +1,26 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import "../interfaces/IPaymentManager.sol";
+
 abstract contract TeacherStorage {
-    // ----------------------------
+    IPaymentManager internal paymentManager;
+
+    modifier onlyPaymentService() {
+        require(
+            address(paymentManager) != address(0),
+            "Payment manager not configured"
+        );
+
+        require(paymentManager.authorizedServices(msg.sender), "Unauthorized");
+
+        _;
+    }
+
+    // =====================================================
     // STRUCTS
-    // ----------------------------
+    // =====================================================
+
     struct TeacherInfo {
         string name;
         string subject;
@@ -13,9 +29,9 @@ abstract contract TeacherStorage {
     }
 
     struct TeacherMarket {
-        uint256 price;
+        uint256 price; // Native POL price
         bool forSale;
-        uint256 rentPricePerDay;
+        uint256 rentPricePerDay; // Native POL rent price
         bool forRent;
     }
 
@@ -34,77 +50,117 @@ abstract contract TeacherStorage {
         bool exists;
     }
 
+    // =====================================================
+    // STATE VARIABLES
+    // =====================================================
+
     uint256 public totalSupply;
     uint256 internal tokenCounter;
 
-    // ----------------------------
-    // MAPPINGS
-    // ----------------------------
+    // =====================================================
+    // TEACHER DATA
+    // =====================================================
 
     mapping(uint256 => TeacherInfo) public teacherInfo;
     mapping(uint256 => TeacherMarket) public teacherMarket;
     mapping(uint256 => TeacherStats) public teacherStats;
     mapping(uint256 => TeacherData) public teacherData;
+
+    // =====================================================
+    // ACCESS CONTROL
+    // =====================================================
+
     mapping(uint256 => mapping(address => uint256)) public accessExpiry;
-    mapping(address => uint256[]) internal userRentals;
-    mapping(address => mapping(uint256 => bool)) internal rentalExists;
-    mapping(uint256 => string[]) internal skills;
-    mapping(uint256 => mapping(address => bool)) public hasRated;
+
     mapping(uint256 => mapping(address => uint256)) public subscriptionExpiry;
-    mapping(uint256 => uint256) public monthlySubscriptionPrice;
-    mapping(uint256 => uint256) public yearlySubscriptionPrice;
+
+    // =====================================================
+    // RENTAL
+    // =====================================================
+
+    mapping(address => uint256[]) internal userRentals;
+
+    mapping(address => mapping(uint256 => bool)) internal rentalExists;
+
+    // =====================================================
+    // SUBSCRIPTIONS
+    // =====================================================
+
     mapping(address => uint256[]) public userSubscriptions;
+
     mapping(address => mapping(uint256 => bool)) public subscriptionExists;
 
-    
+    // =====================================================
+    // SUBSCRIPTION PRICES (Native POL)
+    // =====================================================
 
-    // ERC721 functions implemented in AITeacherNFT.sol
+    mapping(uint256 => uint256) public monthlySubscriptionPrice;
 
-    // ----------------------------
-    // EVENTS
-    // ----------------------------
+    mapping(uint256 => uint256) public yearlySubscriptionPrice;
+
+    // =====================================================
+    // MULTI-CURRENCY PRICES
+    // tokenId => tokenAddress => price
+    // =====================================================
+
+    // Monthly subscription
+    mapping(uint256 => mapping(address => uint256))
+        public subscriptionMonthlyPriceByToken;
+
+    // Yearly subscription
+    mapping(uint256 => mapping(address => uint256))
+        public subscriptionYearlyPriceByToken;
+
+    // NFT Sale Price
+    mapping(uint256 => mapping(address => uint256)) public salePriceByToken;
+
+    // Rental Price
+    mapping(uint256 => mapping(address => uint256)) public rentPriceByToken;
+
+    // =====================================================
+    // RATINGS
+    // =====================================================
+
+    mapping(uint256 => mapping(address => bool)) public hasRated;
+
+    // =====================================================
+    // SKILLS
+    // =====================================================
+
+    mapping(uint256 => string[]) internal skills;
+
+    // =====================================================
+    // INTERNAL ERC721 FUNCTIONS
+    // Implemented in AITeacherNFT.sol
+    // =====================================================
 
     function _safeMintInternal(address to, uint256 tokenId) internal virtual;
 
-    // ----------------------------
-    // SET TOKEN URI INTERNAL
-    // ----------------------------
     function _setTokenURIInternal(
         uint256 tokenId,
         string memory uri
     ) internal virtual;
 
-    // ----------------------------
-    // BALANCE OF INTERNAL
-    // ----------------------------
     function _balanceOfInternal(
         address owner
     ) internal view virtual returns (uint256);
 
-    // ----------------------------
-    // CHECK OWNER INTERNAL
-    // ----------------------------
     function _checkOwnerInternal() internal view virtual;
 
-    // ----------------------------
-    // OWNER OF INTERNAL
-    // ----------------------------
     function _ownerOfInternal(
         uint256 tokenId
     ) internal view virtual returns (address);
 
-    // ----------------------------
-    // TRANSFER INTERNAL
-    // ----------------------------
     function _transferInternal(
         address from,
         address to,
         uint256 tokenId
     ) internal virtual;
 
-    // ----------------------------
-    // HAS ACCESS
-    // ----------------------------
+    // =====================================================
+    // ACCESS CHECK
+    // =====================================================
+
     function hasAccess(
         uint256 tokenId,
         address user

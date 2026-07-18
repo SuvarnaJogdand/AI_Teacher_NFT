@@ -10,6 +10,11 @@ import MyNFTs from "./pages/MyNFTs";
 import Login from "./pages/Login";
 import SubscriptionPage from "./pages/SubscriptionPage";
 import MySubscriptionPage from "./pages/MySubscriptionPage";
+import MyRentalsPage from "./pages/MyRentalsPage";
+import CountrySelector from "./pages/CountrySelector";
+
+
+
 
 function App() {
   return (
@@ -27,6 +32,9 @@ function App() {
           <Route path="/subscribe/:tokenId" element={<SubscriptionPage />} />
           <Route path="/subscription/:tokenId" element={<SubscriptionPage />} />
           <Route path="/my-subscriptions" element={<MySubscriptionPage />} />
+          <Route path="/my-rentals" element={<MyRentalsPage />} />
+          <Route path="/country" element={<CountrySelector />}
+/>
           
         </Routes>
       </div>

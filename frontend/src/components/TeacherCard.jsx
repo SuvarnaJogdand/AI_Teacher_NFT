@@ -1,4 +1,5 @@
-
+import { useState } from "react";
+import CountryPopup from "./CountryPopup";
 import { Link } from "react-router-dom";
 
 
@@ -6,6 +7,26 @@ function TeacherCard({ teacher }) {
 
   console.log("teacher.id:", teacher.id);
   console.log("teacher.tokenId:", teacher.tokenId);
+
+  console.log("Teacher:", teacher);
+
+  const [showCountryPopup, setShowCountryPopup] =
+    useState(false);
+
+  const handleSubscribe = () => {
+
+    const country =
+      localStorage.getItem("country");
+
+    if (!country) {
+      setShowCountryPopup(true);
+      return;
+    }
+
+    window.location.href =
+      `/subscription/${teacher.tokenId}`;
+  }
+
   return (
     <div className="teacher-card">
 
@@ -42,46 +63,18 @@ function TeacherCard({ teacher }) {
         </p>
       )}
 
-      {/* {teacher.forSale && (
-        <p>
-          <strong>For Sale:</strong> 🟢 Yes
-          <br />
-          <strong>Sale Price:</strong> {teacher.price} POL
-        </p>
-      )}
-
-      {teacher.forRent && (
-        <p>
-          <strong>For Rent:</strong> 🟢 Yes
-          <br />
-          <strong>Rent Price:</strong> {teacher.rentPricePerDay} POL/day
-        </p>
-      )} */}
 
       <p>
-        <strong>Sale Status:</strong>{" "}
         {teacher.forSale
-          ? `🟢 For Sale (${teacher.price} POL)`
+          ? `🟢 For Sale (${teacher.salePrice} POL)`
           : "🔴 Not For Sale"}
       </p>
 
       <p>
-        <strong>Rent Status:</strong>{" "}
         {teacher.forRent
           ? `🟢 For Rent (${teacher.rentPricePerDay} POL/day)`
           : "🔴 Not For Rent"}
       </p>
-
-      {/* <Link
-        className="details-btn"
-        to={`/teacher/${teacher.id}`}
-      >
-        View Details
-      </Link>
-
-      <Link to={`/subscribe/${teacher.id}`}>
-        <button>Subscribe</button>
-      </Link> */}
 
       <div
         style={{
@@ -98,10 +91,29 @@ function TeacherCard({ teacher }) {
           View Details
         </Link>
 
-        <Link to={`/subscribe/${teacher.id}`}>
-          <button>Subscribe</button>
-        </Link>
+        <button onClick={handleSubscribe}>
+          Subscribe
+        </button>
       </div>
+
+      {
+        showCountryPopup && (
+          <CountryPopup
+            onSave={(selectedCountry) => {
+
+              localStorage.setItem(
+                "country",
+                selectedCountry
+              );
+
+              setShowCountryPopup(false);
+
+              window.location.href =
+                `/subscription/${teacher.tokenId}`;
+            }}
+          />
+        )
+      }
 
 
 

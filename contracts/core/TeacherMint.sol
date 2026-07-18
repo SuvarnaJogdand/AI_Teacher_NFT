@@ -93,6 +93,7 @@ abstract contract TeacherMint is TeacherStorage {
     // TOTAL SUPPLY
     // ----------------------------
     function getTotalSupply() public view returns (uint256) {
+        
         return totalSupply;
     }
 

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ethers } from "ethers";
 
 import abi from "../contracts/AITeacherNFT.json";
-import { CONTRACT_ADDRESS } from "../contracts/config";
+import { NFT_CONTRACT } from "../contracts/config";
 
 function SetSubscription({ tokenId }) {
 
@@ -18,7 +18,7 @@ function SetSubscription({ tokenId }) {
       await provider.getSigner();
 
     const contract = new ethers.Contract(
-      CONTRACT_ADDRESS,
+      NFT_CONTRACT,
       abi.abi,
       signer
     );

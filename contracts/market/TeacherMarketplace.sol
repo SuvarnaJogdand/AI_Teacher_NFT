@@ -1,95 +1,136 @@
 // SPDX-License-Identifier: MIT
-
 pragma solidity ^0.8.24;
 
-import "../core/TeacherStorage.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "../interfaces/IAITeacherNFT.sol";
+import "../interfaces/IPaymentManager.sol";
 
-abstract contract TeacherMarketplace is TeacherStorage {
-    // ----------------------------
-    // EVENTS
-    // ----------------------------
+contract TeacherMarketplace is Ownable {
+    IAITeacherNFT public nft;
+    IPaymentManager public paymentManager;
+
+    struct Listing {
+        uint256 price;
+        bool active;
+    }
+
+    mapping(uint256 => Listing) public listings;
+
     event NFTListed(uint256 indexed tokenId, uint256 price);
-    event NFTSaleCancelled(uint256 indexed tokenId);
+
+    event ListingCancelled(uint256 indexed tokenId);
+
     event NFTPurchased(
         uint256 indexed tokenId,
-        address seller,
-        address buyer,
-        uint256 price
+        address indexed seller,
+        address indexed buyer,
+        uint256 amount
     );
 
-    // ----------------------------
-    // LIST NFT FOR SALE
-    // ----------------------------
-    function listForSale(uint256 tokenId, uint256 price) public {
-        require(_ownerOfInternal(tokenId) == msg.sender, "Not NFT owner");
+    modifier onlyPaymentService() {
+        require(
+            address(paymentManager) != address(0),
+            "Payment manager not configured"
+        );
+
+        require(paymentManager.authorizedServices(msg.sender), "Unauthorized");
+
+        _;
+    }
+
+    constructor(address nftAddress) {
+        nft = IAITeacherNFT(nftAddress);
+    }
+
+    //------------------------------------------------
+    // LIST NFT
+    //------------------------------------------------
+
+    function listNFT(uint256 tokenId, uint256 price) external {
+        require(nft.ownerOf(tokenId) == msg.sender, "Not owner");
 
         require(price > 0, "Invalid price");
 
-        require(!teacherMarket[tokenId].forRent, "Cancel rent first");
-
-        teacherMarket[tokenId].price = price;
-        teacherMarket[tokenId].forSale = true;
+        listings[tokenId] = Listing({price: price, active: true});
 
         emit NFTListed(tokenId, price);
     }
 
-    // ----------------------------
-    // CANCEL SALE
-    // ----------------------------
-    function cancelSale(uint256 tokenId) public {
-        require(_ownerOfInternal(tokenId) == msg.sender, "Not NFT owner");
+    //------------------------------------------------
+    // CANCEL
+    //------------------------------------------------
 
-        teacherMarket[tokenId].forSale = false;
+    function cancelListing(uint256 tokenId) external {
+        require(nft.ownerOf(tokenId) == msg.sender, "Not owner");
 
-        emit NFTSaleCancelled(tokenId);
+        delete listings[tokenId];
+
+        emit ListingCancelled(tokenId);
     }
 
-    // ----------------------------
-    // UPDATE PRICE
-    // ----------------------------
-    function updatePrice(uint256 tokenId, uint256 newPrice) public {
-        require(_ownerOfInternal(tokenId) == msg.sender, "Not NFT owner");
-
-        require(newPrice > 0, "Invalid price");
-
-        require(!teacherMarket[tokenId].forSale, "Cancel sale first");
-
-        teacherMarket[tokenId].price = newPrice;
-    }
-
-    // ----------------------------
+    //------------------------------------------------
     // BUY NFT
-    // ----------------------------
-    function buyNFT(uint256 tokenId) public payable {
-        TeacherMarket storage market = teacherMarket[tokenId];
+    //------------------------------------------------
 
-        require(teacherData[tokenId].exists, "Teacher not found");
+    function buyNFT(uint256 tokenId) external payable {
+        Listing storage listing = listings[tokenId];
 
-        require(market.forSale, "NFT not for sale");
+        require(listing.active, "NFT not listed");
 
-        address seller = _ownerOfInternal(tokenId);
+        address seller = nft.ownerOf(tokenId);
 
-        require(seller != msg.sender, "Cannot buy your own NFT");
+        require(seller != msg.sender, "Cannot buy own NFT");
 
-        require(msg.value == market.price, "Incorrect payment amount");
+        require(msg.value == listing.price, "Incorrect payment");
 
-        market.forSale = false;
-        market.forRent = false;
-        market.rentPricePerDay = 0;
+        (bool success, ) = payable(seller).call{value: msg.value}("");
 
-        (bool success, ) = payable(seller).call{value: market.price}("");
+        require(success);
 
-        require(success, "Payment failed");
+        nft.safeTransferFrom(seller, msg.sender, tokenId);
 
-        _transferInternal(seller, msg.sender, tokenId);
+        delete listings[tokenId];
 
-        emit NFTPurchased(tokenId, seller, msg.sender, market.price);
+        emit NFTPurchased(tokenId, seller, msg.sender, msg.value);
     }
 
-    // ----------------------------
-    // CHECK SALE STATUS
-    // ----------------------------
-    function isForSale(uint256 tokenId) public view returns (bool) {
-        return teacherMarket[tokenId].forSale;
+    //------------------------------------------------
+
+    function getListing(
+        uint256 tokenId
+    ) external view returns (Listing memory) {
+        return listings[tokenId];
+    }
+
+    function completePurchase(
+        bytes32 paymentId,
+        uint256 tokenId,
+        address buyer,
+        uint256 amount
+    ) external onlyPaymentService {
+        Listing storage listing = listings[tokenId];
+
+        require(listing.active, "NFT not listed");
+
+        require(
+            paymentManager.validatePayment(paymentId, tokenId, buyer, amount),
+            "Invalid payment"
+        );
+
+        address seller = nft.ownerOf(tokenId);
+
+        require(seller != buyer, "Already owner");
+
+        nft.safeTransferFrom(seller, buyer, tokenId);
+
+        delete listings[tokenId];
+
+        emit NFTPurchased(tokenId, seller, buyer, amount);
+    }
+
+    function setPaymentManager(address manager) external onlyOwner {
+        require(manager != address(0), "Invalid address");
+
+        paymentManager = IPaymentManager(manager);
     }
 }

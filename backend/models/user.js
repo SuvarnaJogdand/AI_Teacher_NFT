@@ -29,17 +29,59 @@ const userSchema = new mongoose.Schema(
 
     role: {
       type: String,
-      enum: ["user", "admin"],
-      default: "user",
+      enum: ["student", "teacher", "admin"],
+      default: "student",
     },
 
     nonce: {
       type: String,
+      default: "",
+    },
+
+    country: {
+      type: String,
+      default: "",
+    },
+
+    preferredCurrency: {
+      type: String,
+      default: "USD",
+    },
+
+    profileImage: {
+      type: String,
+      default: "",
+    },
+
+    status: {
+      type: String,
+      enum: ["active", "blocked"],
+      default: "active",
+    },
+
+    password: {
+      type: String,
+    },
+
+    country: {
+      type: String,
+      default: "India",
+    },
+
+    currency: {
+      type: String,
+      default: "INR",
     },
   },
   {
     timestamps: true,
-  }
+  },
+
+
+
+
+
+
 );
 
 const User =
