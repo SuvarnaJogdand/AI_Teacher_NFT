@@ -2,7 +2,7 @@ import { useParams } from "react-router-dom";
 import { ethers } from "ethers";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { getSubscriptionContract, } from "../contracts/contracts";
+import { getSubscriptionContract, getNFTContract, } from "../contracts/contracts";
 
 
 // const params = useParams();
@@ -23,6 +23,11 @@ function SubscriptionPage() {
 
     useEffect(() => {
         loadPrices();
+    }, []);
+
+    useEffect(() => {
+
+        if (!monthlyPrice || !yearlyPrice) return;
 
         const calculatePrices = async () => {
 
@@ -31,13 +36,13 @@ function SubscriptionPage() {
 
             if (!country) return;
 
-            const response = await fetch(
-                "http://localhost:5000/api/exchange-rates"
-            );
+            const response =
+                await fetch(
+                    "http://localhost:5000/api/exchange-rates"
+                );
 
-            const data = await response.json();
-
-            const polUsd = data.polUsd;
+            const data =
+                await response.json();
 
             const currencyMap = {
                 India: "INR",
@@ -47,29 +52,30 @@ function SubscriptionPage() {
                 Japan: "JPY",
             };
 
-            const currencyCode =
+            const code =
                 currencyMap[country];
 
-            const exchangeRate =
-                data.rates[currencyCode];
-
-            const monthly =
+            const convertedMonthly =
                 Number(monthlyPrice) *
-                polUsd *
-                exchangeRate;
+                data.polUsd *
+                data.rates[code];
 
-            const yearly =
+            const convertedYearly =
                 Number(yearlyPrice) *
-                polUsd *
-                exchangeRate;
+                data.polUsd *
+                data.rates[code];
 
-            setLocalMonthlyPrice(monthly);
+            console.log("Converted Monthly:", convertedMonthly);
 
-            setLocalYearlyPrice(yearly);
+            setLocalMonthlyPrice(convertedMonthly);
+
+            setLocalYearlyPrice(convertedYearly);
+
         };
 
         calculatePrices();
-    }, []);
+
+    }, [monthlyPrice, yearlyPrice]);
 
     const symbols = {
         India: "₹",
@@ -105,6 +111,15 @@ function SubscriptionPage() {
                 );
 
             console.log("Plan:", plan);
+            console.log(
+                "Monthly POL:",
+                ethers.formatEther(plan.monthlyPrice)
+            );
+
+            console.log(
+                "Yearly POL:",
+                ethers.formatEther(plan.yearlyPrice)
+            );
 
             setMonthlyPrice(
                 ethers.formatEther(
@@ -127,63 +142,81 @@ function SubscriptionPage() {
     console.log("Monthly:", monthlyPrice);
     console.log("Yearly:", yearlyPrice);
 
+    console.log("TokenId:", tokenId);
+
+
+
     const subscribe = async (yearly) => {
-
-        const userCountry =
-            localStorage.getItem("country");
-
-        if (!userCountry) {
-            alert(
-                "Please select your country before subscribing."
-            );
-
-            window.location.href = "/country";
-
-            return;
-        }
-
         try {
+            const contract = await getSubscriptionContract();
 
-            const contract =
-                await getSubscriptionContract();
+            const plan = await contract.getPlan(tokenId);
+            console.log(plan);
+
+            const nftContract = await getNFTContract();
+
+            const owner = await nftContract.ownerOf(tokenId);
+
+            console.log("NFT Owner:", owner);
+
+            const signer = await contract.runner.getAddress();
+
+            console.log("Connected Wallet:", signer);
+
+          
 
             const price = yearly
-                ? await contract.yearlySubscriptionPrice(tokenId)
-                : await contract.monthlySubscriptionPrice(tokenId);
+                ? plan.yearlyPrice
+                : plan.monthlyPrice;
 
-            const tx =
-                await contract.subscribeTeacher(
-                    tokenId,
-                    yearly,
-                    {
-                        value: price,
-                    }
-                );
+            console.log("Token ID:", tokenId);
+            console.log("Yearly:", yearly);
+            console.log("Price:", price.toString());
+
+            const tx = await contract.subscribe(tokenId, yearly, {
+                value: price,
+            });
+
+            console.log("Transaction:", tx);
 
             await tx.wait();
 
             alert("Subscription Successful");
-
         } catch (err) {
-            console.log(err);
+            console.error("Subscribe Error:", err);
+
+            if (err.reason) {
+                console.log("Reason:", err.reason);
+            }
+
+            if (err.shortMessage) {
+                console.log("Short Message:", err.shortMessage);
+            }
+
+            if (err.data) {
+                console.log("Data:", err.data);
+            }
+
             alert("Subscription Failed");
         }
     };
-
 
 
     return (
         <div>
             <h2>Teacher Subscription</h2>
 
-            <p>
+            {/* <p>
                 Country:
                 {localStorage.getItem("country") || "Not Selected"}
             </p>
 
             <Link to="/country">
                 <button>Change Country</button>
-            </Link>
+            </Link> */}
+
+            <br />
+            <br />
 
             <p>
                 Monthly Price:
@@ -191,14 +224,12 @@ function SubscriptionPage() {
                 {localMonthlyPrice.toFixed(2)}
             </p>
 
-            <p>
-                Yearly Price:
-                {symbol}
-                {localYearlyPrice.toFixed(2)}
-            </p>
 
             <button
-                onClick={() => subscribe(false)}
+                onClick={() => {
+                    console.log("Monthly button clicked");
+                    subscribe(false);
+                }}
             >
                 Subscribe Monthly
             </button>
@@ -206,7 +237,12 @@ function SubscriptionPage() {
             <br />
             <br />
 
-            
+            <p>
+                Yearly Price:
+                {symbol}
+                {localYearlyPrice.toFixed(2)}
+            </p>
+
 
             <button
                 onClick={() => subscribe(true)}

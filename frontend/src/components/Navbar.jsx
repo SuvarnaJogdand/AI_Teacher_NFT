@@ -25,9 +25,6 @@ function Navbar() {
           My Rentals
         </Link>
 
-        <Link to="/country">
-          Country
-        </Link>
       </div>
 
       <WalletButton />

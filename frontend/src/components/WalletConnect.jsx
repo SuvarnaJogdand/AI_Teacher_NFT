@@ -13,17 +13,21 @@ function WalletConnect() {
 
       const provider = new BrowserProvider(window.ethereum);
 
-      const accounts = await provider.send(
-        "eth_requestAccounts",
-        []
-      );
+      await provider.send("eth_requestAccounts", []);
 
-      setWalletAddress(accounts[0]);
+      const signer = await provider.getSigner();
+
+      const selectedAddress = await signer.getAddress();
+
+      console.log("Selected Account:", selectedAddress);
+
+      setWalletAddress(selectedAddress);
 
       localStorage.setItem(
         "walletAddress",
-        accounts[0]
+        selectedAddress
       );
+
     } catch (error) {
       console.error(error);
     }

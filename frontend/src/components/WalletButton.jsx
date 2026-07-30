@@ -8,24 +8,24 @@ function WalletButton() {
   } = useWallet();
 
   return (
-    <>
-      {walletAddress ? (
-        <>
-          <span>
-            {walletAddress.slice(0, 6)}...
-            {walletAddress.slice(-4)}
-          </span>
+    <div>
+      <p>{walletAddress || "Not Connected"}</p>
 
-          <button onClick={disconnectWallet}>
-            Disconnect
-          </button>
-        </>
-      ) : (
-        <button onClick={connectWallet}>
+      {!walletAddress ? (
+        <button
+          onClick={() => {
+            console.log("Connect Wallet button clicked");
+            connectWallet();
+          }}
+        >
           Connect Wallet
         </button>
+      ) : (
+        <button onClick={disconnectWallet}>
+          Disconnect Wallet
+        </button>
       )}
-    </>
+    </div>
   );
 }
 

@@ -8,35 +8,66 @@ export const WalletProvider = ({ children }) => {
   const [signer, setSigner] = useState(null);
   const [provider, setProvider] = useState(null);
   const [chainId, setChainId] = useState(null);
+  const [accounts, setAccounts] = useState([]);
 
+
+  console.log("window.ethereum:", window.ethereum);
+  console.log("window.ethereum.providers:", window.ethereum.providers);
   const connectWallet = async () => {
     try {
+      console.log("Connect clicked");
+
       if (!window.ethereum) {
         alert("Please install MetaMask");
         return;
       }
 
-      const accounts = await window.ethereum.request({
+      await window.ethereum.request({
         method: "eth_requestAccounts",
       });
 
       const provider = new ethers.BrowserProvider(window.ethereum);
+
+      console.log(window.ethereum);
+      console.log(await provider.send("eth_accounts", []));
+
       const signer = await provider.getSigner();
+
+      console.log("Signer:", await signer.getAddress());
+
+      console.log(
+        "MetaMask selected:",
+        await window.ethereum.request({
+          method: "eth_accounts",
+        })
+      );
+
+      console.log(await signer.getAddress());
+
+      // Debug
+      console.log(
+        "Signer Address:",
+        await signer.getAddress()
+      );
+
+      const selectedAddress = await signer.getAddress();
 
       const network = await provider.getNetwork();
 
-      setWalletAddress(accounts[0]);
+      console.log("Selected Account:", selectedAddress);
+
+      setWalletAddress(selectedAddress);
+      setAccounts([selectedAddress]);
       setSigner(signer);
       setProvider(provider);
       setChainId(Number(network.chainId));
+
       localStorage.removeItem("walletDisconnected");
 
-      // await switchToAmoy();
     } catch (error) {
       console.error(error);
     }
   };
-
   // const switchToAmoy = async () => {
   //   try {
   //     await window.ethereum.request({
@@ -67,31 +98,57 @@ export const WalletProvider = ({ children }) => {
   //   }
   // };
 
-  const disconnectWallet = () => {
-    console.log("Disconnect clicked");
+  const switchAccount = async () => {
+    try {
+      if (!window.ethereum) {
+        alert("Please install MetaMask");
+        return;
+      }
 
+      // Ask MetaMask to let the user choose/confirm the account
+      await window.ethereum.request({
+        method: "eth_requestAccounts",
+      });
+
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+
+      const selectedAddress = await signer.getAddress();
+
+      const network = await provider.getNetwork();
+
+      console.log("Switched Account:", selectedAddress);
+
+      setWalletAddress(selectedAddress);
+      setAccounts([selectedAddress]);
+      setSigner(signer);
+      setProvider(provider);
+      setChainId(Number(network.chainId));
+
+    } catch (error) {
+      console.error(error);
+    }
+  };
+  const disconnectWallet = () => {
     localStorage.setItem(
       "walletDisconnected",
       "true"
     );
 
     setWalletAddress("");
+    setAccounts([]);
     setSigner(null);
     setProvider(null);
     setChainId(null);
-
-    // Force UI update
-    window.location.reload();
   };
 
   const checkConnection = async () => {
     if (
-      localStorage.getItem(
-        "walletDisconnected"
-      ) === "true"
+      localStorage.getItem("walletDisconnected") === "true"
     ) {
       return;
     }
+
     if (!window.ethereum) return;
 
     const accounts = await window.ethereum.request({
@@ -99,15 +156,15 @@ export const WalletProvider = ({ children }) => {
     });
 
     if (accounts.length > 0) {
-      const provider = new ethers.BrowserProvider(
-        window.ethereum
-      );
+      const provider = new ethers.BrowserProvider(window.ethereum);
 
-      const signer = await provider.getSigner();
+      setAccounts([selectedAddress]);
+      setWalletAddress(selectedAddress);
 
       const network = await provider.getNetwork();
 
-      setWalletAddress(accounts[0]);
+      setAccounts(accounts);
+      setWalletAddress(selectedAddress);
       setSigner(signer);
       setProvider(provider);
       setChainId(Number(network.chainId));
@@ -120,20 +177,21 @@ export const WalletProvider = ({ children }) => {
     if (window.ethereum) {
       window.ethereum.on("accountsChanged", async (accounts) => {
         if (accounts.length > 0) {
-          const provider =
-            new ethers.BrowserProvider(
-              window.ethereum
-            );
+          const provider = new ethers.BrowserProvider(window.ethereum);
 
-          const signer =
-            await provider.getSigner();
+          const signer = await provider.getSigner();
 
-          setWalletAddress(
-            accounts[0]
-          );
+          const selectedAddress = await signer.getAddress();
 
+          console.log("MetaMask switched to:", selectedAddress);
+
+          setAccounts([selectedAddress]);
+          setWalletAddress(selectedAddress);
           setSigner(signer);
           setProvider(provider);
+
+          const network = await provider.getNetwork();
+          setChainId(Number(network.chainId));
 
         } else {
           disconnectWallet();
@@ -146,6 +204,8 @@ export const WalletProvider = ({ children }) => {
     }
   }, []);
 
+  console.log("Current walletAddress:", walletAddress);
+
   return (
     <WalletContext.Provider
       value={{
@@ -154,6 +214,8 @@ export const WalletProvider = ({ children }) => {
         provider,
         connectWallet,
         disconnectWallet,
+        switchAccount,
+        accounts,
       }}
     >
       {children}

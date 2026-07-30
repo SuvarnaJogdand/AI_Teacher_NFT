@@ -112,8 +112,7 @@ function TeacherForm({ existingTeacher = null }) {
       //     imageUrl
       //   );
 
-      const metadataURI = "";
-      console.log(metadataURI);
+
 
       console.log("Image URL:", imageUrl);
 
@@ -144,22 +143,39 @@ function TeacherForm({ existingTeacher = null }) {
 
       const receipt = await tx.wait();
 
+      console.log("Receipt:", receipt);
+      console.log("Logs:", receipt.logs);
+
+      // Print every log
+      receipt.logs.forEach((log) => {
+        try {
+          const parsed = contract.interface.parseLog(log);
+          console.log("Parsed Log:", parsed);
+        } catch (e) {
+          console.log("Unknown Log:", log);
+        }
+      });
+
+      // Find TeacherMinted event
       const mintEvent = receipt.logs.find((log) => {
         try {
-          const parsed =
-            contract.interface.parseLog(log);
-
+          const parsed = contract.interface.parseLog(log);
           return parsed.name === "TeacherMinted";
         } catch {
           return false;
         }
       });
 
-      const parsed =
-        contract.interface.parseLog(mintEvent);
+      if (!mintEvent) {
+        alert("TeacherMinted event not found.");
+        return;
+      }
 
-      const tokenId =
-        Number(parsed.args.tokenId);
+      const parsed = contract.interface.parseLog(mintEvent);
+
+      const tokenId = Number(parsed.args.tokenId);
+
+      console.log("Minted TokenId:", tokenId);
 
       console.log("Minted TokenId:", tokenId);
 

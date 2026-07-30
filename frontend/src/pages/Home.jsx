@@ -76,13 +76,15 @@ function Home() {
           let metadata = {};
           //console.log("TokenURI:", tokenURI);
           try {
+            console.log("TokenURI =", tokenURI);
             const response = await fetch(tokenURI);
 
             console.log("Response status:", response.status);
 
             metadata = await response.json();
+            console.log("Metadata Image:", metadata.image);
 
-            console.log("Metadata:", metadata);
+            //console.log("Metadata:", metadata);
           } catch (err) {
             console.log("Metadata error:", err);
           }
@@ -99,7 +101,12 @@ function Home() {
             mintPrice:
               teacher.mintPrice?.toString() || "0",
 
-            imageUrl: metadata.image || "",
+            imageUrl: metadata.image
+              ? metadata.image.replace(
+                "ipfs://",
+                "https://gateway.pinata.cloud/ipfs/"
+              )
+              : "",
             description: metadata.description || "",
 
             ownerWallet: owner,

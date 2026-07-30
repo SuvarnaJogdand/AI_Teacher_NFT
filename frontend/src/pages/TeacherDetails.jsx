@@ -355,10 +355,10 @@ console.log("Experience:", teacherData.experience);
         <h2>Teacher Not Found</h2>
 
         <Link
-          to="/my-nfts"
+          to="/"
           className="details-btn"
         >
-          Back to My NFTs
+          Back to Home
         </Link>
       </div>
     );
@@ -566,10 +566,10 @@ console.log("Experience:", teacherData.experience);
 
 
         <Link
-          to="/my-nfts"
+          to="/"
           className="details-btn"
         >
-          ← Back to My NFTs
+          ← Back to Home
         </Link>
       </div>
     </div>

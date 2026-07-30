@@ -15,16 +15,7 @@ function TeacherCard({ teacher }) {
 
   const handleSubscribe = () => {
 
-    const country =
-      localStorage.getItem("country");
-
-    if (!country) {
-      setShowCountryPopup(true);
-      return;
-    }
-
-    window.location.href =
-      `/subscription/${teacher.tokenId}`;
+    setShowCountryPopup(true);
   }
 
   return (

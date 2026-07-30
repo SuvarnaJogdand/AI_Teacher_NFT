@@ -3,7 +3,7 @@ import express from "express";
 import {
     convertPrice,
     getCurrencies
-} from "../controllers/paymentController.js";
+} from "../controllers/exchangeController.js";
 
 const router = express.Router();
 

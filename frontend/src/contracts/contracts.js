@@ -42,9 +42,17 @@ export const getProvider = () => {
 // =====================================
 
 export const getSigner = async () => {
-    const provider = getProvider();
+    const provider = new ethers.BrowserProvider(window.ethereum);
 
-    return await provider.getSigner();
+    const accounts = await provider.send("eth_accounts", []);
+
+    console.log("MetaMask accounts:", accounts);
+
+    const signer = await provider.getSigner(accounts[0]);
+
+    console.log("Using signer:", await signer.getAddress());
+
+    return signer;
 };
 
 // =====================================
