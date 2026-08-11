@@ -1,40 +1,30 @@
+import axios from "axios";
 import dotenv from "dotenv";
-import { Cashfree } from "cashfree-pg";
 
 dotenv.config();
 
-Cashfree.XClientId = process.env.CASHFREE_APP_ID;
-Cashfree.XClientSecret = process.env.CASHFREE_SECRET_KEY;
-Cashfree.XEnvironment = Cashfree.Environment.SANDBOX;
+const BASE_URL =
+  process.env.CASHFREE_ENV === "PROD"
+    ? "https://api.cashfree.com/pg"
+    : "https://sandbox.cashfree.com/pg";
 
-export async function createOrder({
-    orderId,
-    amount,
-    customerId,
-    customerName,
-    customerEmail,
-    customerPhone
-}) {
+export async function createCashfreeOrder(order) {
+  const response = await axios.post(
+    `${BASE_URL}/orders`,
+    order,
+    {
+      headers: {
+        "Content-Type": "application/json",
 
-    const request = {
+        "x-api-version": "2023-08-01",
 
-        order_id: orderId,
+        "x-client-id": process.env.CASHFREE_APP_ID,
 
-        order_amount: amount,
+        "x-client-secret":
+          process.env.CASHFREE_SECRET_KEY,
+      },
+    }
+  );
 
-        order_currency: "INR",
-
-        customer_details: {
-            customer_id: customerId,
-            customer_name: customerName,
-            customer_email: customerEmail,
-            customer_phone: customerPhone
-        }
-
-    };
-
-    const response =
-        await Cashfree.PGCreateOrder(request);
-
-    return response.data;
+  return response.data;
 }

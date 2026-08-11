@@ -1,266 +1,617 @@
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { ethers } from "ethers";
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { getSubscriptionContract, getNFTContract, } from "../contracts/contracts";
+import { useEffect, useState, useRef } from "react";
+import { getSubscriptionContract } from "../contracts/contracts";
+import { load } from "@cashfreepayments/cashfree-js";
+import { useWallet } from "../context/WalletContext";
 
-
-// const params = useParams();
-
-// console.log("Params:", params);
 
 function SubscriptionPage() {
 
     const { tokenId } = useParams();
 
-    console.log("TokenId from URL =", tokenId);
-
     const [monthlyPrice, setMonthlyPrice] = useState("0");
     const [yearlyPrice, setYearlyPrice] = useState("0");
+
+    const [polUsd, setPolUsd] = useState(0);
+
     const [localMonthlyPrice, setLocalMonthlyPrice] = useState(0);
     const [localYearlyPrice, setLocalYearlyPrice] = useState(0);
 
+    const cashfreeRef = useRef(null);
+
+    const { walletAddress } = useWallet();
+
+
+
+    // Load Cashfree
 
     useEffect(() => {
-        loadPrices();
+
+        async function initCashfree() {
+
+            cashfreeRef.current = await load({
+                mode: "sandbox",
+            });
+
+            console.log("Cashfree loaded");
+
+        }
+
+        initCashfree();
+
     }, []);
 
+
+
+
+
+    // Load subscription prices
+
     useEffect(() => {
 
-        if (!monthlyPrice || !yearlyPrice) return;
+        loadPrices();
 
-        const calculatePrices = async () => {
+    }, [tokenId]);
 
-            const country =
-                localStorage.getItem("country");
 
-            if (!country) return;
 
-            const response =
-                await fetch(
+
+
+    const loadPrices = async () => {
+
+        try {
+
+            if (!tokenId) {
+                console.log("Token id missing");
+                return;
+            }
+
+
+            const contract =
+                await getSubscriptionContract();
+
+
+            const plan =
+                await contract.getPlan(tokenId);
+
+
+
+            const monthly =
+                ethers.formatEther(
+                    plan.monthlyPrice
+                );
+
+
+            const yearly =
+                ethers.formatEther(
+                    plan.yearlyPrice
+                );
+
+
+
+            console.log(
+                "Monthly POL:",
+                monthly
+            );
+
+
+            console.log(
+                "Yearly POL:",
+                yearly
+            );
+
+
+
+            setMonthlyPrice(monthly);
+
+            setYearlyPrice(yearly);
+
+
+
+        }
+        catch (error) {
+
+            console.error(
+                "Price loading error:",
+                error
+            );
+
+        }
+
+    };
+
+
+
+
+
+
+
+    // POL conversion
+
+    useEffect(() => {
+
+
+        async function calculatePrices() {
+
+            try {
+
+                const country =
+                    localStorage.getItem("country") || "USA";
+
+
+                // ==========================================
+                // GET POL + CURRENCY RATES
+                // ==========================================
+
+                const response = await fetch(
                     "http://localhost:5000/api/exchange-rates"
                 );
 
-            const data =
-                await response.json();
 
-            const currencyMap = {
-                India: "INR",
-                USA: "USD",
-                UK: "GBP",
-                Canada: "CAD",
-                Japan: "JPY",
-            };
+                if (!response.ok) {
 
-            const code =
-                currencyMap[country];
+                    throw new Error(
+                        `Exchange rate API returned ${response.status}`
+                    );
 
-            const convertedMonthly =
-                Number(monthlyPrice) *
-                data.polUsd *
-                data.rates[code];
+                }
 
-            const convertedYearly =
-                Number(yearlyPrice) *
-                data.polUsd *
-                data.rates[code];
 
-            console.log("Converted Monthly:", convertedMonthly);
+                const data =
+                    await response.json();
 
-            setLocalMonthlyPrice(convertedMonthly);
 
-            setLocalYearlyPrice(convertedYearly);
+                console.log(
+                    "Exchange Data:",
+                    data
+                );
 
-        };
 
-        calculatePrices();
+                // ==========================================
+                // COUNTRY → CURRENCY
+                // ==========================================
 
-    }, [monthlyPrice, yearlyPrice]);
+                const currencyMap = {
+
+                    India: "INR",
+
+                    USA: "USD",
+
+                    UK: "GBP",
+
+                    Canada: "CAD",
+
+                    Japan: "JPY",
+
+                    Australia: "AUD",
+
+                    UAE: "AED",
+
+                    Europe: "EUR",
+
+                    Switzerland: "CHF",
+
+                    Singapore: "SGD",
+
+                    NewZealand: "NZD",
+
+                    China: "CNY",
+
+                    SouthKorea: "KRW",
+
+                    Brazil: "BRL",
+
+                    Mexico: "MXN",
+
+                    SouthAfrica: "ZAR",
+
+                    SaudiArabia: "SAR",
+
+                    Qatar: "QAR",
+
+                    Thailand: "THB",
+
+                    Malaysia: "MYR"
+
+                };
+
+
+                const code =
+                    currencyMap[country] || "USD";
+
+
+                console.log(
+                    "Country:",
+                    country
+                );
+
+                console.log(
+                    "Currency:",
+                    code
+                );
+
+
+                // ==========================================
+                // POL → USD
+                // ==========================================
+
+                const polRate =
+                    Number(data.polUsd);
+
+
+                // ==========================================
+                // USD → LOCAL CURRENCY
+                // ==========================================
+
+                const currencyRate =
+                    Number(data.rates[code]);
+
+
+                if (!polRate || !currencyRate) {
+
+                    throw new Error(
+                        `Exchange rate unavailable for ${code}`
+                    );
+
+                }
+
+
+                // ==========================================
+                // POL → LOCAL CURRENCY
+                // ==========================================
+
+                const monthlyLocal =
+
+                    Number(monthlyPrice)
+                    *
+                    polRate
+                    *
+                    currencyRate;
+
+
+                const yearlyLocal =
+
+                    Number(yearlyPrice)
+                    *
+                    polRate
+                    *
+                    currencyRate;
+
+
+                console.log(
+                    "POL/USD:",
+                    polRate
+                );
+
+                console.log(
+                    "USD/" + code + ":",
+                    currencyRate
+                );
+
+                console.log(
+                    "Monthly local:",
+                    monthlyLocal
+                );
+
+                console.log(
+                    "Yearly local:",
+                    yearlyLocal
+                );
+
+
+                // ==========================================
+                // SAVE PRICES
+                // ==========================================
+
+                setLocalMonthlyPrice(
+                    monthlyLocal
+                );
+
+                setLocalYearlyPrice(
+                    yearlyLocal
+                );
+
+
+            } catch (error) {
+
+                console.error(
+                    "Currency conversion failed:",
+                    error
+                );
+
+            }
+        }
+
+
+
+        if (
+            monthlyPrice !== "0" &&
+            yearlyPrice !== "0"
+        ) {
+
+            calculatePrices();
+
+        }
+
+
+
+    }, [
+        monthlyPrice,
+        yearlyPrice
+    ]);
+
+
+
+
+
+
+
 
     const symbols = {
+
         India: "₹",
         USA: "$",
         UK: "£",
         Canada: "C$",
-        Japan: "¥",
+        Japan: "¥"
+
     };
 
+
+
     const country =
-        localStorage.getItem("country");
+        localStorage.getItem("country")
+        || "USA";
+
 
     const symbol =
         symbols[country];
 
-    console.log("Calling monthlySubscriptionPrice with:", tokenId);
 
-    const loadPrices = async () => {
+
+
+
+
+
+
+
+    // Payment
+
+    const subscribe = async (planType) => {
+
+
         try {
-            console.log("Loading prices for token:", tokenId);
 
-            if (!tokenId) {
-                console.log("TokenId is undefined");
-                return;
-            }
 
-            const subscriptionContract =
-                await getSubscriptionContract();
+            if (!cashfreeRef.current) {
 
-            const plan =
-                await subscriptionContract.getPlan(
-                    tokenId
+                alert(
+                    "Cashfree not loaded"
                 );
 
-            console.log("Plan:", plan);
-            console.log(
-                "Monthly POL:",
-                ethers.formatEther(plan.monthlyPrice)
-            );
+                return;
 
-            console.log(
-                "Yearly POL:",
-                ethers.formatEther(plan.yearlyPrice)
-            );
-
-            setMonthlyPrice(
-                ethers.formatEther(
-                    plan.monthlyPrice
-                )
-            );
-
-            setYearlyPrice(
-                ethers.formatEther(
-                    plan.yearlyPrice
-                )
-            );
-
-        } catch (error) {
-            console.error(error);
-        }
-    };
-
-    console.log("TokenId:", tokenId);
-    console.log("Monthly:", monthlyPrice);
-    console.log("Yearly:", yearlyPrice);
-
-    console.log("TokenId:", tokenId);
+            }
 
 
 
-    const subscribe = async (yearly) => {
-        try {
-            const contract = await getSubscriptionContract();
+            const amount =
 
-            const plan = await contract.getPlan(tokenId);
-            console.log(plan);
+                planType === "MONTHLY"
 
-            const nftContract = await getNFTContract();
+                    ?
+                    localMonthlyPrice
 
-            const owner = await nftContract.ownerOf(tokenId);
+                    :
+                    localYearlyPrice;
 
-            console.log("NFT Owner:", owner);
 
-            const signer = await contract.runner.getAddress();
 
-            console.log("Connected Wallet:", signer);
 
-          
 
-            const price = yearly
-                ? plan.yearlyPrice
-                : plan.monthlyPrice;
+            const response =
+                await fetch(
 
-            console.log("Token ID:", tokenId);
-            console.log("Yearly:", yearly);
-            console.log("Price:", price.toString());
+                    "http://localhost:5000/api/payment/create-order",
 
-            const tx = await contract.subscribe(tokenId, yearly, {
-                value: price,
+                    {
+
+                        method: "POST",
+
+                        headers: {
+
+                            "Content-Type":
+                                "application/json"
+
+                        },
+
+
+                        body: JSON.stringify({
+
+                            teacherId: Number(tokenId),
+
+                            amount,
+
+                            plan: planType,
+
+                            studentWallet:
+                                walletAddress,
+
+                            customerName:
+                                "Student",
+
+                            customerEmail:
+                                "student@test.com",
+
+                            customerPhone:
+                                "9999999999"
+
+                        })
+
+                    }
+
+                );
+
+
+
+
+
+            const data =
+                await response.json();
+
+
+
+            if (!data.success) {
+
+                alert(
+                    "Payment creation failed"
+                );
+
+                return;
+
+            }
+
+
+
+
+
+            await cashfreeRef.current.checkout({
+
+                paymentSessionId:
+                    data.paymentSessionId,
+
+                redirectTarget:
+                    "_modal"
+
             });
 
-            console.log("Transaction:", tx);
 
-            await tx.wait();
 
-            alert("Subscription Successful");
-        } catch (err) {
-            console.error("Subscribe Error:", err);
-
-            if (err.reason) {
-                console.log("Reason:", err.reason);
-            }
-
-            if (err.shortMessage) {
-                console.log("Short Message:", err.shortMessage);
-            }
-
-            if (err.data) {
-                console.log("Data:", err.data);
-            }
-
-            alert("Subscription Failed");
         }
+        catch (error) {
+
+            console.error(
+                error
+            );
+
+            alert(
+                "Payment failed"
+            );
+
+        }
+
+
     };
+
+    console.log("PRICE DEBUG:", {
+        monthlyPrice,
+        yearlyPrice,
+        polUsd,
+        monthlyUSD:
+            Number(monthlyPrice) * Number(polUsd),
+        yearlyUSD:
+            Number(yearlyPrice) * Number(polUsd)
+    });
+
+
+
+
+
+
 
 
     return (
+
         <div>
-            <h2>Teacher Subscription</h2>
 
-            {/* <p>
-                Country:
-                {localStorage.getItem("country") || "Not Selected"}
-            </p>
 
-            <Link to="/country">
-                <button>Change Country</button>
-            </Link> */}
+            <h2>
+                Teacher Subscription
+            </h2>
 
-            <br />
-            <br />
+
+
+            <hr />
+
+
+
+
+            <h3>
+                Monthly Plan
+            </h3>
 
             <p>
                 Monthly Price:
-                {symbol}
-                {localMonthlyPrice.toFixed(2)}
+
+                <br />
+
+                <strong>
+                    {symbol}
+                    {localMonthlyPrice.toFixed(2)}
+                </strong>
+
             </p>
 
 
             <button
-                onClick={() => {
-                    console.log("Monthly button clicked");
-                    subscribe(false);
-                }}
+                onClick={() => subscribe("MONTHLY")}
             >
                 Subscribe Monthly
             </button>
 
-            <br />
-            <br />
+
+            <hr />
+
+
+            <h3>
+                Yearly Plan
+            </h3>
+
 
             <p>
                 Yearly Price:
-                {symbol}
-                {localYearlyPrice.toFixed(2)}
+
+                <br />
+
+                <strong>
+                    {symbol}
+                    {localYearlyPrice.toFixed(2)}
+                </strong>
+
             </p>
 
 
             <button
-                onClick={() => subscribe(true)}
+                onClick={() => subscribe("YEARLY")}
             >
                 Subscribe Yearly
             </button>
+
+
+
+
+
             <br />
             <br />
 
 
 
-            <div style={{ textAlign: "center", marginTop: "20px" }}>
-                <Link to="/">
-                    <button>← Back to Home</button>
-                </Link>
-            </div>
+            <Link to="/">
+
+                <button>
+                    ← Back to Home
+                </button>
+
+            </Link>
+
+
+
         </div>
+
     );
+
 }
+
 
 export default SubscriptionPage;

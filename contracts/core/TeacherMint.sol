@@ -54,7 +54,14 @@ abstract contract TeacherMint is TeacherStorage {
             totalStudents: 0,
             totalRevenue: 0,
             totalRating: 0,
-            reviewCount: 0
+            reviewCount: 0,
+            activeSubscribers: 0,
+            lessonsCompleted: 0,
+            questionsAnswered: 0,
+            likes: 0,
+            profileViews: 0,
+            successRate: 0,
+            averageResponseTime: 0
         });
 
         // Teacher Data

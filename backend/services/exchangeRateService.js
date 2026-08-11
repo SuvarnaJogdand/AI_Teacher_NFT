@@ -1,69 +1,195 @@
 import axios from "axios";
 
+
 class ExchangeRateService {
+
     constructor() {
+
         this.cache = {};
+
         this.lastUpdated = 0;
-        this.cacheDuration = 60 * 60 * 1000; // 1 hour
+
+        this.cacheDuration =
+            60 * 60 * 1000; // 1 hour
+
+        this.polUsd = 0;
+
     }
 
+
+
     //-----------------------------------------
-    // Load latest exchange rates
+    // Load Fiat exchange rates
     //-----------------------------------------
-    async loadRates(base = "USD") {
+
+    async loadRates(base="USD") {
+
+
         const now = Date.now();
 
-        if (
+
+
+        if(
             this.cache[base] &&
-            now - this.lastUpdated < this.cacheDuration
-        ) {
+            now - this.lastUpdated <
+            this.cacheDuration
+        ){
+
             return this.cache[base];
+
         }
+
+
+
 
         const url =
-            `https://open.er-api.com/v6/latest/${base}`;
+        `https://open.er-api.com/v6/latest/${base}`;
 
-        const response = await axios.get(url);
 
-        this.cache[base] = response.data.rates;
-        this.lastUpdated = now;
 
-        return response.data.rates;
+        const response =
+            await axios.get(url);
+
+
+
+        this.cache[base] =
+            response.data.rates;
+
+
+
+        this.lastUpdated =
+            now;
+
+
+
+        return this.cache[base];
+
     }
 
+
+
+
+
+
+
     //-----------------------------------------
-    // Convert Currency
+    // Get POL price in USD
     //-----------------------------------------
-    async convert(
-        amount,
-        fromCurrency,
-        toCurrency
-    ) {
-        if (fromCurrency === toCurrency) {
-            return amount;
+
+    async getPOLPriceUSD(){
+
+
+        try{
+
+
+            const response =
+            await axios.get(
+
+            "https://api.coingecko.com/api/v3/simple/price?ids=polygon-ecosystem-token&vs_currencies=usd"
+
+            );
+
+
+
+            this.polUsd =
+            response.data
+            ["polygon-ecosystem-token"]
+            .usd;
+
+
+
+            return this.polUsd;
+
+
+
+        }
+        catch(error){
+
+
+            console.error(
+                "POL price error:",
+                error
+            );
+
+
+            throw error;
+
+
         }
 
+
+    }
+
+
+
+
+
+
+
+    //-----------------------------------------
+    // Convert POL to Currency
+    //-----------------------------------------
+
+    async convertPOL(
+        amountPOL,
+        targetCurrency
+    ){
+
+
+        const polUsd =
+            await this.getPOLPriceUSD();
+
+
+
         const rates =
-            await this.loadRates(fromCurrency);
+            await this.loadRates("USD");
 
-        const rate = rates[toCurrency];
 
-        if (!rate) {
+
+        const currencyRate =
+            rates[targetCurrency];
+
+
+
+        if(!currencyRate){
+
             throw new Error(
                 "Unsupported currency"
             );
+
         }
 
+
+
         return Number(
-            (amount * rate).toFixed(2)
+
+            (
+            amountPOL *
+            polUsd *
+            currencyRate
+            )
+            .toFixed(2)
+
         );
+
+
     }
+
+
+
+
+
+
 
     //-----------------------------------------
     // Supported Currencies
     //-----------------------------------------
-    getSupportedCurrencies() {
+
+    getSupportedCurrencies(){
+
+
         return [
+
             "USD",
             "INR",
             "EUR",
@@ -73,49 +199,86 @@ class ExchangeRateService {
             "CAD",
             "AUD",
             "SGD"
+
         ];
+
     }
+
+
+
+
+
 
     //-----------------------------------------
     // Currency Symbol
     //-----------------------------------------
-    getSymbol(currency) {
-        const symbols = {
-            USD: "$",
-            INR: "₹",
-            EUR: "€",
-            GBP: "£",
-            AED: "د.إ",
-            JPY: "¥",
-            CAD: "C$",
-            AUD: "A$",
-            SGD: "S$"
+
+    getSymbol(currency){
+
+
+        const symbols={
+
+            USD:"$",
+            INR:"₹",
+            EUR:"€",
+            GBP:"£",
+            AED:"د.إ",
+            JPY:"¥",
+            CAD:"C$",
+            AUD:"A$",
+            SGD:"S$"
+
         };
 
-        return symbols[currency] || currency;
+
+        return symbols[currency]
+        ||
+        currency;
+
+
     }
 
+
+
+
+
+
+
     //-----------------------------------------
-    // Detect Currency from Country
+    // Detect Currency
     //-----------------------------------------
-    getCurrency(countryCode) {
-        const map = {
-            IN: "INR",
-            US: "USD",
-            GB: "GBP",
-            AE: "AED",
-            JP: "JPY",
-            DE: "EUR",
-            FR: "EUR",
-            IT: "EUR",
-            ES: "EUR",
-            CA: "CAD",
-            AU: "AUD",
-            SG: "SGD"
+
+    getCurrency(countryCode){
+
+
+        const map={
+
+            IN:"INR",
+            US:"USD",
+            GB:"GBP",
+            AE:"AED",
+            JP:"JPY",
+            DE:"EUR",
+            FR:"EUR",
+            IT:"EUR",
+            ES:"EUR",
+            CA:"CAD",
+            AU:"AUD",
+            SG:"SGD"
+
         };
 
-        return map[countryCode] || "USD";
+
+        return map[countryCode]
+        ||
+        "USD";
+
+
     }
+
+
+
 }
+
 
 export default new ExchangeRateService();

@@ -19,16 +19,58 @@ function TeacherDetails() {
   const [account, setAccount] = useState("");
   const [rentPrice, setRentPrice] = useState("");
   const [daysCount, setDaysCount] = useState(30);
+  const [rentalExpiry, setRentalExpiry] = useState(0);
   const [hasAccess, setHasAccess] = useState(false);
   const [subscriptionActive, setSubscriptionActive] = useState(false);
   const [monthlyPrice, setMonthlyPrice] = useState("");
   const [yearlyPrice, setYearlyPrice] = useState("");
+  const [ratingInfo, setRatingInfo] = useState({ average: 0, count: 0 });
+  const [reviews, setReviews] = useState([]);
+  const [comment, setComment] = useState("");
+  const [rating, setRating] = useState("5");
 
 
   useEffect(() => {
     loadTeacher();
     checkSubscription();
+
   }, [id, signer]);
+
+  useEffect(() => {
+
+    if (teacher?.tokenId) {
+
+      loadReviews();
+
+    }
+
+  }, [teacher]);
+  useEffect(() => {
+    checkRentalAccess();
+  }, [account, id, signer]);
+
+  useEffect(() => {
+    const loadAccount = async () => {
+      if (!signer) {
+        setAccount("");
+        return;
+      }
+
+      try {
+        const address = await signer.getAddress();
+
+        console.log("Wallet address:", address);
+
+        setAccount(address);
+      } catch (error) {
+        console.error("Could not get wallet address:", error);
+        setAccount("");
+      }
+    };
+
+    loadAccount();
+  }, [signer]);
+
 
   const loadTeacher = async () => {
     try {
@@ -40,118 +82,188 @@ function TeacherDetails() {
         signer
       );
 
-      const teacherData =
-        await contract.getTeacher(id);
+      const result = await contract.getTeacher(id);
+      console.log("COMPLETE RESULT:", result);
+      console.log("TEACHER INFO:", result[0]);
+      console.log("TEACHER MARKET:", result[1]);
+      console.log("TEACHER STATS:", result[2]);
 
-      await loadSubscriptionPrices(Number(id));
+      console.log("Complete getTeacher result:", result);
 
-      const owner =
-        await contract.teacherOwner(id);
+      const teacherInfo = result[0];
+      const teacherMarket = result[1];
+      const teacherStats = result[2];
 
-      const skills =
-        await contract.getSkills(id);
+      console.log("TeacherInfo:", teacherInfo);
+      console.log("TeacherMarket:", teacherMarket);
+      console.log("TeacherStats:", teacherStats);
 
-      const walletAddress =
-        await signer.getAddress();
+      const owner = await contract.teacherOwner(id);
+      const skills = await contract.getSkills(id);
 
-      setAccount(walletAddress);
+      console.log("Owner:", owner);
+      console.log("Skills:", skills);
 
-      const marketplace =
-        await getMarketplaceContract();
+      // Check mint price before formatEther
+      let mintPrice = "0";
 
-      const listing =
-        await marketplace.getListing(Number(id));;
+      if (
+        teacherInfo.mintPrice !== undefined &&
+        teacherInfo.mintPrice !== null
+      ) {
+        mintPrice = ethers.formatEther(teacherInfo.mintPrice);
+      }
+
+      // Get marketplace
+      const marketplace = await getMarketplaceContract();
+
+      const listing = await marketplace.getListing(
+        Number(id)
+      );
 
       console.log("Listing:", listing);
-      console.log("Listing Active:", listing.active);
-      console.log("Listing Price:", listing.price?.toString());
 
-      console.log("Teacher Data:", teacherData);
-console.log("Experience:", teacherData.experience);
+      let salePrice = "0";
 
-      const rental =
-        await getRentalContract();
+      if (
+        listing.price !== undefined &&
+        listing.price !== null
+      ) {
+        salePrice = ethers.formatEther(listing.price);
+      }
 
-      const rentalInfo =
-        await rental.getRental(id);
+      // Get rental information
+      const rental = await getRentalContract();
 
-      console.log(
-        "Rental Active:",
-        rentalInfo.active
+      const rentalInfo = await rental.getRental(
+        Number(id)
       );
 
       console.log("Rental Info:", rentalInfo);
-      console.log("Listing:", listing);
 
-      console.log(
-        rentalInfo?.rentPricePerDay?.toString?.()
-      );
+      let rentPrice = "0";
+
+      if (
+        rentalInfo[0] !== undefined &&
+        rentalInfo[0] !== null
+      ) {
+        rentPrice = ethers.formatEther(
+          rentalInfo[0]
+        );
+      }
 
       setTeacher({
         tokenId: Number(id),
 
-        name: teacherData.name,
-        subject: teacherData.subject,
-        topic: teacherData.topic,
-        specialization: teacherData.specialization,
-        experience: teacherData.experience,
-        price: ethers.formatEther(
-          teacherData.mintPrice
-        ),
+        name: teacherInfo.name,
+        subject: teacherInfo.subject,
+        topic: teacherInfo.topic,
 
-        owner,
-        skills,
+        specialization:
+          teacherInfo.specialization,
 
-        forSale: listing.active,
+        level:
+          teacherInfo.level,
 
-        salePrice: listing.price
-          ? ethers.formatEther(listing.price)
-          : "0",
+        experience:
+          teacherInfo.experience?.toString() || "0",
 
-        forRent: Boolean(rentalInfo[1]),
+        price: mintPrice,
+
+        owner: owner,
+
+        skills: skills || [],
+
+        forSale:
+          Boolean(listing.active),
+
+        salePrice:
+          salePrice,
+
+        forRent:
+          Boolean(rentalInfo[1]),
 
         rentPricePerDay:
-          rentalInfo[0]
-            ? ethers.formatEther(rentalInfo[0])
-            : "0",
+          rentPrice
       });
+
     } catch (error) {
-      console.error(error);
+
+      console.error(
+        "loadTeacher ERROR:",
+        error
+      );
+
     } finally {
+
       setLoading(false);
+
     }
   };
 
-  const loadSubscriptionPrices = async (tokenId) => {
+  const checkRentalAccess = async () => {
     try {
-      const subscriptionContract =
-        await getSubscriptionContract();
+      if (!signer || !account || !id) {
+        setRentalExpiry(0);
+        return;
+      }
 
-      const plan =
-        await subscriptionContract.getPlan(tokenId);
+      const rental = await getRentalContract();
 
-      setMonthlyPrice(
-        ethers.formatEther(plan.monthlyPrice)
+      const expiry = await rental.getRentalExpiry(
+        Number(id),
+        account
       );
 
-      setYearlyPrice(
-        ethers.formatEther(plan.yearlyPrice)
-      );
+      setRentalExpiry(Number(expiry));
 
-    } catch (err) {
-      console.error(err);
+      console.log("Rental expiry:", Number(expiry));
+
+    } catch (error) {
+      console.error("Rental access error:", error);
+      setRentalExpiry(0);
     }
   };
 
+
+
+
+  // const checkSubscription = async () => {
+  //   try {
+  //     if (!signer) return;
+
+  //     const subscriptionContract =
+  //       await getSubscriptionContract();
+
+
+
+  //     // const walletAddress =
+  //     //   await signer.getAddress();
+
+  //     const active =
+  //       await subscriptionContract.hasSubscription(
+  //         id,
+  //         walletAddress
+  //       );
+
+
+
+  //     setSubscriptionActive(active);
+
+  //   } catch (err) {
+  //     console.error(err);
+  //   }
+  // };
 
   const checkSubscription = async () => {
     try {
-      if (!signer) return;
+      if (!signer) {
+        setSubscriptionActive(false);
+        return;
+      }
 
       const subscriptionContract =
         await getSubscriptionContract();
-
-
 
       const walletAddress =
         await signer.getAddress();
@@ -162,46 +274,163 @@ console.log("Experience:", teacherData.experience);
           walletAddress
         );
 
-
-
       setSubscriptionActive(active);
 
     } catch (err) {
-      console.error(err);
+      console.error("Subscription check error:", err);
+      setSubscriptionActive(false);
+    }
+  };
+
+  // const loadRating = async () => {
+
+  //   try {
+
+  //     const response = await fetch(
+  //       `http://localhost:5000/api/reviews/rating/${id}`
+  //     );
+
+  //     const data = await response.json();
+
+  //     setRatingInfo(data);
+
+  //   } catch (error) {
+
+  //     console.error(error);
+
+  //   }
+
+  // };
+
+  const submitReview = async () => {
+
+    if (!account) {
+      alert("Connect wallet first");
+      return;
+    }
+
+    if (!comment.trim()) {
+      alert("Please write a review");
+      return;
+    }
+
+    if (!teacher?.tokenId) {
+      alert("Teacher not loaded");
+      return;
+    }
+
+    try {
+
+      const response = await fetch(
+        "http://localhost:5000/api/reviews",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json"
+          },
+
+          body: JSON.stringify({
+            tokenId: Number(teacher.tokenId),
+            student: account,
+            rating: Number(rating),
+            comment: comment.trim()
+          })
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Failed to submit review"
+        );
+      }
+
+      console.log("Review submitted:", data);
+
+      setComment("");
+      setRating("5");
+
+      // Reload reviews and rating
+      await loadReviews();
+
+      alert("Review submitted successfully");
+
+    } catch (error) {
+
+      console.error(
+        "Submit review error:",
+        error
+      );
+
+      alert(error.message);
     }
   };
 
   const listForSale = async () => {
     try {
+      if (!signer) {
+        alert("Connect wallet first");
+        return;
+      }
+
+      if (!teacher?.tokenId) {
+        alert("Teacher not loaded");
+        return;
+      }
+
       if (!salePrice || Number(salePrice) <= 0) {
         alert("Please enter a valid sale price");
         return;
       }
 
-      const marketplace =
-        await getMarketplaceContract();
+      const nftContract = new ethers.Contract(
+        NFT_CONTRACT,
+        abi.abi,
+        signer
+      );
 
-      const tx =
-        await marketplace.listNFT(
-          teacher.tokenId,
-          ethers.parseEther(salePrice)
-        );
+      const marketplace = await getMarketplaceContract();
+
+      console.log("Approving marketplace...");
+
+      // Approve marketplace to transfer this NFT
+      const approveTx = await nftContract.approve(
+        await marketplace.getAddress(),
+        teacher.tokenId
+      );
+
+      await approveTx.wait();
+
+      console.log("Marketplace approved");
+
+      // Now list NFT
+      const tx = await marketplace.listNFT(
+        teacher.tokenId,
+        ethers.parseEther(salePrice)
+      );
 
       console.log("Listing TX:", tx.hash);
 
-      const receipt = await tx.wait();
-
-      console.log("Receipt:", receipt);
-
       await tx.wait();
 
-      alert("NFT listed for sale");
+      alert("NFT listed for sale successfully");
 
-      loadTeacher();
+      await loadTeacher();
+
     } catch (err) {
-      console.error(err);
+      console.error("LIST FOR SALE ERROR:", err);
+
+      alert(
+        err.shortMessage ||
+        err.reason ||
+        err.message ||
+        "Failed to list NFT"
+      );
     }
   };
+
 
   const listForRent = async () => {
     try {
@@ -215,7 +444,7 @@ console.log("Experience:", teacherData.experience);
 
       const tx =
         await rental.listForRent(
-          teacher.tokenId,
+          teacher?.tokenId,
           ethers.parseEther(
             rentPrice.toString()
           )
@@ -244,7 +473,7 @@ console.log("Experience:", teacherData.experience);
 
       const tx =
         await subscriptionContract.setSubscriptionPrice(
-          teacher.tokenId,
+          teacher?.tokenId,
           ethers.parseEther(monthlyPrice.toString()),
           ethers.parseEther(yearlyPrice.toString())
         );
@@ -253,7 +482,7 @@ console.log("Experience:", teacherData.experience);
 
       alert("Subscription prices updated");
 
-      loadSubscriptionPrices(teacher.tokenId);
+      loadSubscriptionPrices(teacher?.tokenId);
 
     } catch (err) {
       console.error(err);
@@ -267,7 +496,7 @@ console.log("Experience:", teacherData.experience);
 
       const tx =
         await marketplace.cancelListing(
-          teacher.tokenId
+          teacher?.tokenId
         );
 
       await tx.wait();
@@ -280,123 +509,367 @@ console.log("Experience:", teacherData.experience);
 
   const buyNFT = async () => {
     try {
-      const marketplace =
-        await getMarketplaceContract();
+      if (!signer) {
+        alert("Please connect your wallet first");
+        return;
+      }
 
-      const listing =
-        await marketplace.getListing(
-          teacher.tokenId
-        );
+      if (!teacher?.tokenId) {
+        alert("Teacher not loaded");
+        return;
+      }
 
-      const tx =
-        await marketplace.buyNFT(
-          teacher.tokenId,
-          {
-            value: listing.price
-          }
-        );
+      if (!teacher.forSale) {
+        alert("This teacher is not listed for sale");
+        return;
+      }
+
+      if (isOwner) {
+        alert("Owner cannot buy their own NFT");
+        return;
+      }
+
+      const marketplace = await getMarketplaceContract();
+
+      const listing = await marketplace.getListing(
+        teacher.tokenId
+      );
+
+      console.log("Listing:", listing);
+
+      if (!listing.active) {
+        alert("NFT is no longer listed");
+        return;
+      }
+
+      if (!listing.price || listing.price === 0n) {
+        alert("Invalid listing price");
+        return;
+      }
+
+      const tx = await marketplace.buyNFT(
+        teacher.tokenId,
+        {
+          value: listing.price
+        }
+      );
+
+      console.log("Buy transaction:", tx.hash);
 
       await tx.wait();
 
-      alert("NFT purchased successfully");
+      alert("NFT purchased successfully!");
 
-      loadTeacher();
+      await loadTeacher();
+
     } catch (err) {
-      console.error(err);
+      console.error("BUY NFT ERROR:", err);
+
+      alert(
+        err.shortMessage ||
+        err.reason ||
+        err.message ||
+        "Failed to buy NFT"
+      );
     }
   };
 
   const rentNFT = async () => {
     try {
+      if (!signer) {
+        alert("Connect wallet first");
+        return;
+      }
 
-      const rental =
-        await getRentalContract();
+      if (!teacher?.tokenId) {
+        alert("Teacher not loaded");
+        return;
+      }
+
+      if (!teacher.forRent) {
+        alert("This teacher is not available for rent");
+        return;
+      }
+
+      if (isOwner) {
+        alert("Owner cannot rent their own NFT");
+        return;
+      }
+
+      if (!daysCount || daysCount <= 0) {
+        alert("Enter valid number of days");
+        return;
+      }
+
+      const rental = await getRentalContract();
 
       const totalRent =
-        Number(
-          teacher.rentPricePerDay
-        ) * daysCount;
+        Number(teacher.rentPricePerDay) * Number(daysCount);
 
+      console.log("Rent price per day:", teacher.rentPricePerDay);
+      console.log("Days:", daysCount);
+      console.log("Total rent:", totalRent);
 
+      const tx = await rental.rentTeacher(
+        teacher.tokenId,
+        daysCount,
+        {
+          value: ethers.parseEther(
+            totalRent.toString()
+          )
+        }
+      );
 
-      const tx =
-        await rental.rentTeacher(
-          teacher.tokenId,
-          daysCount,
-          {
-            value:
-              ethers.parseEther(
-                totalRent.toString()
-              )
-          }
-        );
+      console.log("Rental transaction:", tx.hash);
+
       await tx.wait();
 
-      alert("NFT rented successfully");
+      alert("NFT rented successfully!");
 
-      loadTeacher();
+      // Reload rental status
+      await checkRentalAccess();
+
+      await loadTeacher();
 
     } catch (err) {
-      console.error(err);
+      console.error("RENT NFT ERROR:", err);
+
+      alert(
+        err.shortMessage ||
+        err.reason ||
+        err.message ||
+        "Failed to rent NFT"
+      );
     }
   };
 
+  const approveMarketplace = async () => {
+    try {
+      if (!signer) {
+        alert("Connect owner wallet first");
+        return;
+      }
+
+      if (!teacher?.tokenId) {
+        alert("Teacher not loaded");
+        return;
+      }
+
+      const nftContract = new ethers.Contract(
+        NFT_CONTRACT,
+        abi.abi,
+        signer
+      );
+
+      const marketplace =
+        await getMarketplaceContract();
+
+      const marketplaceAddress =
+        await marketplace.getAddress();
+
+      console.log("Marketplace:", marketplaceAddress);
+      console.log("Token ID:", teacher.tokenId);
+
+      const tx = await nftContract.approve(
+        marketplaceAddress,
+        teacher.tokenId
+      );
+
+      console.log("Approval TX:", tx.hash);
+
+      await tx.wait();
+
+      alert("Marketplace approved successfully");
+
+    } catch (err) {
+      console.error("Approval error:", err);
+
+      alert(
+        err.shortMessage ||
+        err.reason ||
+        err.message ||
+        "Approval failed"
+      );
+    }
+  };
+
+  const loadReviews = async () => {
+
+    if (!teacher?.tokenId) return;
+
+    try {
+
+      const tokenId = teacher.tokenId;
+
+      // Rating summary
+      const ratingResponse = await fetch(
+        `http://localhost:5000/api/reviews/rating/${tokenId}`
+      );
+
+      if (!ratingResponse.ok) {
+        throw new Error(
+          `Rating API error: ${ratingResponse.status}`
+        );
+      }
+
+      const ratingData = await ratingResponse.json();
+
+      setRatingInfo(ratingData);
+
+
+      // Reviews
+      const reviewsResponse = await fetch(
+        `http://localhost:5000/api/reviews/${tokenId}`
+      );
+
+      if (!reviewsResponse.ok) {
+        throw new Error(
+          `Reviews API error: ${reviewsResponse.status}`
+        );
+      }
+
+      const reviewsData = await reviewsResponse.json();
+
+      setReviews(reviewsData);
+
+    } catch (error) {
+
+      console.error(
+        "Review loading error:",
+        error
+      );
+
+    }
+  };
+
+
+
+  <div className="review-box">
+
+    <div className="rating-summary">
+
+      <h2>
+        ⭐ {ratingInfo.average} / 5
+      </h2>
+
+      <p>
+        {ratingInfo.count} Reviews
+      </p>
+
+    </div>
+
+    <h2>Student Reviews</h2>
+
+    <textarea
+      value={comment}
+      onChange={(e) => setComment(e.target.value)}
+      placeholder="Write your review"
+    />
+
+
+    <select
+      value={rating}
+      onChange={(e) => setRating(e.target.value)}
+    >
+      <option value="5">★★★★★</option>
+      <option value="4">★★★★</option>
+      <option value="3">★★★</option>
+      <option value="2">★★</option>
+      <option value="1">★</option>
+    </select>
+
+
+    <button onClick={submitReview}>
+      Submit Review
+    </button>
+
+
+    {/* Display Reviews */}
+
+    <h2>Reviews</h2>
+
+    {
+      reviews.map((review, index) => (
+
+        <div key={index} className="review-item">
+
+          <p>
+            ⭐ {review.rating}/5
+          </p>
+
+          <p>
+            {review.comment}
+          </p>
+
+          <small>
+            {review.student}
+          </small>
+
+        </div>
+
+      ))
+    }
+
+
+  </div>
+
+  const normalizedOwner = teacher?.owner?.toLowerCase() || "";
+  const normalizedAccount = account?.toLowerCase() || "";
+
+  const isOwner =
+    normalizedOwner !== "" &&
+    normalizedAccount !== "" &&
+    normalizedOwner === normalizedAccount;
+
+  console.log("================================");
+  console.log("Teacher Owner:", normalizedOwner);
+  console.log("Connected Account:", normalizedAccount);
+  console.log("IS OWNER:", isOwner);
+  console.log("================================");
+
   if (loading) {
     return (
-      <div className="container">
-        <h2>Loading Teacher...</h2>
-      </div>
+      <h2>Loading Teacher...</h2>
     );
   }
 
+
   if (!teacher) {
     return (
-      <div className="container">
+      <div>
         <h2>Teacher Not Found</h2>
 
-        <Link
-          to="/"
-          className="details-btn"
-        >
+        <Link to="/">
           Back to Home
         </Link>
       </div>
     );
   }
 
-  console.log("Teacher Owner:", teacher?.owner);
-  console.log("Connected Account:", account);
-
-  console.log(
-    "Owner Match:",
-    teacher?.owner?.toLowerCase() ===
-    account?.toLowerCase()
-  );
-
 
 
   return (
     <div className="container">
       <div className="metadata-card">
-        <h1>{teacher.name}</h1>
+        <h1>{teacher?.name}</h1>
 
         <h3>Token ID</h3>
-        <p>{teacher.tokenId}</p>
+        <p>{teacher?.tokenId}</p>
 
         <h3>Specialization</h3>
-        <p>{teacher.specialization}</p>
+        <p>{teacher?.specialization}</p>
 
         <h3>Level</h3>
-        <p>{teacher.level}</p>
+        <p>{teacher?.level}</p>
 
         <h3>Experience</h3>
-        <p>{teacher.experience}</p>
+        <p>{teacher?.experience}</p>
 
         <h3>Owner Wallet</h3>
-        <p>{teacher.owner}</p>
+        <p>{teacher?.owner}</p>
 
         <h3>NFT Price</h3>
-        <p>{teacher.price} POL</p>
+        <p>{teacher?.price} POL</p>
 
         <h3>Subscription Prices</h3>
 
@@ -430,6 +903,25 @@ console.log("Experience:", teacherData.experience);
             ? `🟢 For Rent (${teacher.rentPricePerDay} POL/day)`
             : "🔴 Not For Rent"}
         </p>
+
+        {rentalExpiry > Math.floor(Date.now() / 1000) ? (
+          <>
+            <p>
+              🟢 Your Rental Is Active
+            </p>
+
+            <p>
+              Rental expires:{" "}
+              {new Date(
+                rentalExpiry * 1000
+              ).toLocaleString()}
+            </p>
+          </>
+        ) : (
+          <p>
+            🔴 You don't have an active rental
+          </p>
+        )}
 
         <p>
           Subscription:
@@ -471,7 +963,7 @@ console.log("Experience:", teacherData.experience);
         <br />
         <br />
 
-        <div className="button-group">
+        {/* <div className="button-group">
           {teacher.owner?.toLowerCase() === account?.toLowerCase() && (
 
             <>
@@ -554,14 +1046,237 @@ console.log("Experience:", teacherData.experience);
           teacher.owner?.toLowerCase() !==
           account?.toLowerCase() && (
             <Link
-              to={`/subscription/${teacher.tokenId}`}
+              to={`/subscription/${teacher?.tokenId}`}
             >
               <button>
                 Subscribe
               </button>
             </Link>
           )
-        }
+        } */}
+
+        {isOwner && (
+          <button onClick={approveMarketplace}>
+            Approve Marketplace
+          </button>
+        )}
+
+        {/* =====================================================
+    OWNER ACTIONS
+===================================================== */}
+
+        {/* =====================================================
+    OWNER BUTTONS
+===================================================== */}
+
+        {isOwner && (
+          <div className="button-group">
+
+            {/* List For Sale */}
+            {!teacher.forSale && (
+              <>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="Sale Price (POL)"
+                  value={salePrice}
+                  onChange={(e) =>
+                    setSalePrice(e.target.value)
+                  }
+                />
+
+                <button onClick={listForSale}>
+                  List For Sale
+                </button>
+              </>
+            )}
+
+            {/* List For Rent */}
+            {!teacher.forRent && (
+              <>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="Rent Price Per Day (POL)"
+                  value={rentPrice}
+                  onChange={(e) =>
+                    setRentPrice(e.target.value)
+                  }
+                />
+
+                <button onClick={listForRent}>
+                  List For Rent
+                </button>
+              </>
+            )}
+
+            {/* Cancel Sale */}
+            {teacher.forSale && (
+              <button onClick={cancelSale}>
+                Cancel Sale
+              </button>
+            )}
+
+          </div>
+        )}
+
+
+        {/* =====================================================
+    BUY BUTTON - ONLY NON OWNER
+===================================================== */}
+
+        {!isOwner && teacher.forSale && (
+          <div className="button-group">
+
+            <button onClick={buyNFT}>
+              Buy NFT
+            </button>
+
+          </div>
+        )}
+
+
+        {/* =====================================================
+    RENT BUTTON - ONLY NON OWNER
+===================================================== */}
+
+        {!isOwner && teacher.forRent && (
+          <div className="button-group">
+
+            <input
+              type="number"
+              min="1"
+              value={daysCount}
+              onChange={(e) =>
+                setDaysCount(Number(e.target.value))
+              }
+            />
+
+            <button onClick={rentNFT}>
+              Rent NFT
+            </button>
+
+          </div>
+        )}
+
+
+        {/* =====================================================
+    SUBSCRIBE - ONLY NON OWNER
+===================================================== */}
+
+        {!isOwner && !subscriptionActive && (
+          <div className="button-group">
+
+            <Link to={`/subscription/${teacher.tokenId}`}>
+              <button>
+                Subscribe
+              </button>
+            </Link>
+
+          </div>
+        )}
+        <div className="review-box">
+
+
+          <h2>
+            ⭐ {ratingInfo.average}/5
+          </h2>
+
+          <p>
+            {ratingInfo.count} Reviews
+          </p>
+
+
+          <h2>
+            Student Reviews
+          </h2>
+
+
+          <textarea
+
+            value={comment}
+
+            onChange={(e) =>
+              setComment(e.target.value)
+            }
+
+            placeholder="Write your review"
+          />
+
+
+          <select
+
+            value={rating}
+
+            onChange={(e) =>
+              setRating(e.target.value)
+            }
+
+          >
+
+            <option value="5">
+              ★★★★★
+            </option>
+
+            <option value="4">
+              ★★★★
+            </option>
+
+            <option value="3">
+              ★★★
+            </option>
+
+            <option value="2">
+              ★★
+            </option>
+
+            <option value="1">
+              ★
+            </option>
+
+
+          </select>
+
+
+
+          <button onClick={submitReview}>
+            Submit Review
+          </button>
+
+
+
+          {
+            reviews.map((review, index) => (
+
+              <div
+                key={index}
+                className="review-item"
+              >
+
+                <p>
+                  ⭐ {review.rating}/5
+                </p>
+
+
+                <p>
+                  {review.comment}
+                </p>
+
+
+                <small>
+                  {review.student}
+                </small>
+
+
+              </div>
+
+            ))
+          }
+
+
+        </div>
 
 
 
@@ -577,3 +1292,5 @@ console.log("Experience:", teacherData.experience);
 }
 
 export default TeacherDetails;
+
+

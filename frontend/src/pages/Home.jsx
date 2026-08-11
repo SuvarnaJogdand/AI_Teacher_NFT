@@ -5,12 +5,16 @@ import TeacherCard from "../components/TeacherCard";
 import abi from "../contracts/AITeacherNFT.json";
 import { NFT_CONTRACT } from "../contracts/config";
 import { getMarketplaceContract, getRentalContract } from "../contracts/contracts";
+import { groupBySubject } from "../utils/groupTeachers";
+import { Link } from "react-router-dom";
+
 
 function Home() {
   const [teachers, setTeachers] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSubject, setSelectedSubject] = useState("All");
   const [sortBy, setSortBy] = useState("newest");
+  const groupedSubjects = groupBySubject(teachers);
 
   useEffect(() => {
     loadTeachers();
@@ -136,6 +140,12 @@ function Home() {
       );
 
       setTeachers(teachersData);
+
+      // Save teachers for SubjectPage
+      localStorage.setItem(
+        "teachers",
+        JSON.stringify(teachersData)
+      );
     } catch (error) {
       console.error(
         "Error loading teachers:",
@@ -148,11 +158,7 @@ function Home() {
 
   const subjects = [
     "All",
-    ...new Set(
-      teachers.map(
-        (teacher) => teacher.subject
-      )
-    ),
+    ...Object.keys(groupedSubjects)
   ];
 
   const filteredTeachers =
@@ -209,80 +215,89 @@ function Home() {
   }
 
   return (
-    <> <div className="hero"> <h1>🎓 AI Teacher NFT Marketplace</h1> <p>
-      Create, manage and explore AI Teacher NFTs </p> </div>
+    <>
+      <div className="hero">
+        <h1>🎓 AI Teacher NFT Marketplace</h1>
+        <p>
+          Create, manage and explore AI Teacher NFTs
+        </p>
+      </div>
 
 
       <div className="filters">
-        <input
-          type="text"
-          placeholder="Search Teacher..."
-          value={searchTerm}
-          onChange={(e) =>
-            setSearchTerm(e.target.value)
-          }
-        />
-
-        <select
-          value={selectedSubject}
-          onChange={(e) =>
-            setSelectedSubject(
-              e.target.value
-            )
-          }
-        >
-          {subjects.map((subject) => (
-            <option
-              key={subject}
-              value={subject}
-            >
-              {subject}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={sortBy}
-          onChange={(e) =>
-            setSortBy(e.target.value)
-          }
-        >
-          <option value="newest">
-            Newest First
-          </option>
-
-          <option value="oldest">
-            Oldest First
-          </option>
-
-          <option value="name-asc">
-            Name A-Z
-          </option>
-
-          <option value="name-desc">
-            Name Z-A
-          </option>
-        </select>
+        ...
       </div>
 
-      {sortedTeachers.length === 0 ? (
-        <p>No AI Teachers found.</p>
-      ) : (
-        <div className="teacher-grid">
-          {sortedTeachers.map(
-            (teacher) => (
-              <TeacherCard
-                key={teacher.id}
-                teacher={teacher}
-              />
-            )
-          )}
-        </div>
-      )}
+
+      {/* SUBJECT SECTION - ADD HERE */}
+
+      <div className="subject-grid">
+
+        {
+          Object.keys(groupedSubjects).map((subject) => (
+
+            <div
+              key={subject}
+              className="subject-card"
+            >
+
+              <h2>
+                {subject}
+              </h2>
+
+
+              <p>
+                {groupedSubjects[subject].length} Teachers
+              </p>
+
+
+              {/* <Link
+                to={`/subject/${subject}`}
+              > */}
+              <Link to={`/subject/${encodeURIComponent(subject)}`}>
+                <button>Explore</button>
+              </Link>
+
+            </div>
+
+          ))
+        }
+
+      </div>
+
+
+
+      {/* TEACHER SECTION */}
+
+      {
+        sortedTeachers.length === 0 ? (
+
+          <p>
+            No AI Teachers found.
+          </p>
+
+        ) : (
+
+          <div className="teacher-grid">
+
+            {
+              sortedTeachers.map((teacher) => (
+
+                <TeacherCard
+                  key={teacher.tokenId}
+                  teacher={teacher}
+                />
+
+              ))
+            }
+
+          </div>
+
+        )
+      }
+
+
     </>
-
-
   );
 }
-
 export default Home;

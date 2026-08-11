@@ -1,6 +1,7 @@
 import { useState } from "react";
 import CountryPopup from "./CountryPopup";
 import { Link } from "react-router-dom";
+import {useNavigate} from "react-router-dom";
 
 
 function TeacherCard({ teacher }) {
@@ -12,6 +13,8 @@ function TeacherCard({ teacher }) {
 
   const [showCountryPopup, setShowCountryPopup] =
     useState(false);
+
+    const navigate = useNavigate();
 
   const handleSubscribe = () => {
 
@@ -39,6 +42,13 @@ function TeacherCard({ teacher }) {
         <strong>Subject:</strong>{" "}
         {teacher.subject}
       </p>
+
+      {teacher.topic && (
+        <p>
+          <strong>Topic:</strong>{" "}
+          {teacher.topic}
+        </p>
+      )}
 
       {teacher.level && (
         <p>
@@ -77,7 +87,7 @@ function TeacherCard({ teacher }) {
       >
         <Link
           className="details-btn"
-          to={`/teacher/${teacher.id}`}
+          to={`/teacher/${teacher.tokenId}`}
         >
           View Details
         </Link>
@@ -99,8 +109,7 @@ function TeacherCard({ teacher }) {
 
               setShowCountryPopup(false);
 
-              window.location.href =
-                `/subscription/${teacher.tokenId}`;
+              navigate(`/subscription/${teacher.tokenId}`);
             }}
           />
         )

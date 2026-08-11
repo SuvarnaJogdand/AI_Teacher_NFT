@@ -17,6 +17,8 @@ import marketplaceRoutes from "./routes/marketplaceRoutes.js";
 import rentalRoutes from "./routes/rentalRoutes.js";
 import subscriptionRoutes from "./routes/subscriptionRoutes.js";
 import exchangeRates from "./routes/exchangeRates.js";
+import reviewRoutes from "./routes/reviews.js";
+
 
 
 await checkConnection();
@@ -24,20 +26,12 @@ await checkConnection();
 
 dotenv.config();
 
-
 const app = express();
-
-
-
-
-
 
 /* ---------------- MIDDLEWARE (MUST COME FIRST) ---------------- */
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-
 
 
 /* ---------------- ROUTES ---------------- */
@@ -54,6 +48,7 @@ app.use("/api/marketplace", marketplaceRoutes);
 app.use("/api/rental", rentalRoutes);
 app.use("/api/subscription", subscriptionRoutes);
 app.use("/api/exchange-rates", exchangeRates);
+app.use("/api/reviews", reviewRoutes);
 /* ---------------- DEBUG ---------------- */
 console.log("MONGO_URI =", process.env.MONGO_URI);
 

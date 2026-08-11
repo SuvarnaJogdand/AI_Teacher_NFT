@@ -1,36 +1,88 @@
-import { createOrder } from "../services/cashfreeService.js";
+import { v4 as uuid } from "uuid";
+
+import Payment from "../models/Payment.js";
+
+import { createCashfreeOrder } from "../services/cashfreeService.js";
 
 export const createPayment = async (req, res) => {
-    try {
+  try {
+    const {
+      teacherId,
+      amount,
+      studentWallet,
+      customerName,
+      customerEmail,
+      customerPhone,
+      plan,
+    } = req.body;
 
-        const {
-            tokenId,
-            amount,
-            walletAddress
-        } = req.body;
+    const orderId = uuid();
 
-        const order = await createOrder({
-            orderId: "ORDER_" + Date.now(),
-            amount,
-            customerId: walletAddress,
-            customerName: "AI Teacher Student",
-            customerEmail: "student@test.com",
-            customerPhone: "9999999999"
-        });
+    const order = {
+      order_id: orderId,
 
-        res.json({
-            success: true,
-            order
-        });
+      order_amount: amount,
 
-    } catch (err) {
+      order_currency: "INR",
 
-        console.error(err);
+      customer_details: {
+        customer_id: studentWallet,
 
-        res.status(500).json({
-            success: false,
-            message: err.message
-        });
+        customer_name: customerName,
 
-    }
+        customer_email: customerEmail,
+
+        customer_phone: customerPhone,
+      },
+
+      order_meta: {
+        return_url:
+          "http://localhost:5173/payment-success",
+      },
+    };
+
+    const cashfree =
+      await createCashfreeOrder(order);
+
+    await Payment.create({
+      orderId,
+
+      paymentSessionId:
+        cashfree.payment_session_id,
+
+      teacherId,
+
+      studentWallet,
+
+      customerName,
+
+      customerEmail,
+
+      customerPhone,
+
+      amount,
+
+      currency: "INR",
+
+      paymentStatus: "PENDING",
+
+      plan,
+    });
+
+    res.json({
+      success: true,
+
+      orderId,
+
+      paymentSessionId:
+        cashfree.payment_session_id,
+    });
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      success: false,
+      error: err.message,
+    });
+  }
 };

@@ -39,10 +39,24 @@ abstract contract TeacherStorage {
         uint256 experience;
         uint256 level;
         uint256 rating;
-        uint256 totalStudents;
-        uint256 totalRevenue;
         uint256 totalRating;
         uint256 reviewCount;
+        uint256 totalStudents;
+        uint256 activeSubscribers;
+        uint256 totalRevenue;
+        uint256 lessonsCompleted;
+        uint256 questionsAnswered;
+        uint256 likes;
+        uint256 profileViews;
+        uint256 successRate;
+        uint256 averageResponseTime;
+    }
+
+    struct Review {
+        address student;
+        uint8 rating;
+        string comment;
+        uint256 timestamp;
     }
 
     struct TeacherData {
@@ -122,12 +136,19 @@ abstract contract TeacherStorage {
     // =====================================================
 
     mapping(uint256 => mapping(address => bool)) public hasRated;
+    mapping(uint256 => mapping(address => bool)) public hasLiked;
 
     // =====================================================
     // SKILLS
     // =====================================================
 
     mapping(uint256 => string[]) internal skills;
+
+    mapping(uint256 => Review[]) internal teacherReviews;
+
+    mapping(uint256 => mapping(address => bool)) public hasReviewed;
+
+   
 
     // =====================================================
     // INTERNAL ERC721 FUNCTIONS

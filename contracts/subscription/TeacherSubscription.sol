@@ -9,6 +9,8 @@ contract TeacherSubscription is Ownable {
     IAITeacherNFT public nft;
     IPaymentManager public paymentManager;
 
+   
+
     struct SubscriptionPlan {
         uint256 monthlyPrice;
         uint256 yearlyPrice;

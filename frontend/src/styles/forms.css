@@ -1,0 +1,63 @@
+form{
+
+background:white;
+
+padding:25px;
+
+border-radius:12px;
+
+box-shadow:0 4px 10px rgba(0,0,0,.08);
+
+}
+
+form input,
+form textarea,
+form select{
+
+width:100%;
+
+padding:10px;
+
+margin-bottom:15px;
+
+border:1px solid #ddd;
+
+border-radius:8px;
+
+}
+
+form textarea{
+
+resize:vertical;
+
+}
+
+.input-group{
+
+display:flex;
+
+gap:15px;
+
+flex-wrap:wrap;
+
+}
+
+.input-group input{
+
+flex:1;
+
+min-width:180px;
+
+}
+
+.button-group{
+
+display:flex;
+
+gap:15px;
+
+flex-wrap:wrap;
+
+margin-top:15px;
+
+}
