@@ -143,31 +143,52 @@ export const WalletProvider = ({ children }) => {
   };
 
   const checkConnection = async () => {
-    if (
-      localStorage.getItem("walletDisconnected") === "true"
-    ) {
-      return;
-    }
+    try {
+      if (
+        localStorage.getItem("walletDisconnected") === "true"
+      ) {
+        return;
+      }
 
-    if (!window.ethereum) return;
+      if (!window.ethereum) return;
 
-    const accounts = await window.ethereum.request({
-      method: "eth_accounts",
-    });
+      const connectedAccounts =
+        await window.ethereum.request({
+          method: "eth_accounts",
+        });
 
-    if (accounts.length > 0) {
-      const provider = new ethers.BrowserProvider(window.ethereum);
+      if (connectedAccounts.length === 0) {
+        return;
+      }
+
+      const provider =
+        new ethers.BrowserProvider(window.ethereum);
+
+      const signer =
+        await provider.getSigner();
+
+      const selectedAddress =
+        await signer.getAddress();
+
+      const network =
+        await provider.getNetwork();
+
+      console.log(
+        "Auto-connected wallet:",
+        selectedAddress
+      );
 
       setAccounts([selectedAddress]);
-      setWalletAddress(selectedAddress);
-
-      const network = await provider.getNetwork();
-
-      setAccounts(accounts);
       setWalletAddress(selectedAddress);
       setSigner(signer);
       setProvider(provider);
       setChainId(Number(network.chainId));
+
+    } catch (error) {
+      console.error(
+        "Error checking wallet connection:",
+        error
+      );
     }
   };
 

@@ -8,19 +8,36 @@ import { NFT_CONTRACT } from "../contracts/config";
 import { getMarketplaceContract, getRentalContract, getSubscriptionContract } from "../contracts/contracts";
 
 function TeacherDetails() {
-  const { id } = useParams();
+  //const {tokenId } = useParams();
+
+  const params = useParams();
+
+  const tokenId =
+    params.tokenId ||
+    params.id;
+
+  console.log("TeacherDetails params:", params);
+  console.log("TeacherDetails tokenId:", tokenId);
+
+  const numericTokenId = Number(tokenId);
+
+  if (!tokenId || Number.isNaN(numericTokenId)) {
+    console.error("Invalid tokenId:", tokenId);
+    return null;
+  }
 
   const { signer } = useWallet();
 
 
   const [teacher, setTeacher] = useState(null);
+  console.log("RENDER TEACHER:", teacher);
   const [salePrice, setSalePrice] = useState("");
   const [loading, setLoading] = useState(true);
   const [account, setAccount] = useState("");
   const [rentPrice, setRentPrice] = useState("");
   const [daysCount, setDaysCount] = useState(30);
   const [rentalExpiry, setRentalExpiry] = useState(0);
-  const [hasAccess, setHasAccess] = useState(false);
+  const [hasRentalAccess, setHasRentalAccess] = useState(false);
   const [subscriptionActive, setSubscriptionActive] = useState(false);
   const [monthlyPrice, setMonthlyPrice] = useState("");
   const [yearlyPrice, setYearlyPrice] = useState("");
@@ -30,24 +47,22 @@ function TeacherDetails() {
   const [rating, setRating] = useState("5");
 
 
+
   useEffect(() => {
     loadTeacher();
     checkSubscription();
 
-  }, [id, signer]);
+  }, [tokenId, signer]);
 
   useEffect(() => {
-
     if (teacher?.tokenId) {
-
       loadReviews();
-
     }
-
   }, [teacher]);
+
   useEffect(() => {
     checkRentalAccess();
-  }, [account, id, signer]);
+  }, [account, tokenId, signer]);
 
   useEffect(() => {
     const loadAccount = async () => {
@@ -76,52 +91,133 @@ function TeacherDetails() {
     try {
       if (!signer) return;
 
+      if (!tokenId) {
+        console.error("Invalid tokenId:", tokenId);
+        return;
+      }
+
+      const numericTokenId = Number(tokenId);
+
+      if (Number.isNaN(numericTokenId)) {
+        console.error(
+          "Invalid numeric tokenId:",
+          tokenId
+        );
+        return;
+      }
+
+      console.log(
+        "Loading Teacher Token:",
+        numericTokenId
+      );
+
+
+
       const contract = new ethers.Contract(
         NFT_CONTRACT,
         abi.abi,
         signer
       );
 
-      const result = await contract.getTeacher(id);
-      console.log("COMPLETE RESULT:", result);
-      console.log("TEACHER INFO:", result[0]);
-      console.log("TEACHER MARKET:", result[1]);
-      console.log("TEACHER STATS:", result[2]);
+      console.log("=================================");
 
-      console.log("Complete getTeacher result:", result);
+      // ==========================================
+      // GET TEACHER
+      // ==========================================
 
-      const teacherInfo = result[0];
-      const teacherMarket = result[1];
-      const teacherStats = result[2];
+      const teacherInfo =
+        await contract.getTeacher(
+          numericTokenId
+        );
 
-      console.log("TeacherInfo:", teacherInfo);
-      console.log("TeacherMarket:", teacherMarket);
-      console.log("TeacherStats:", teacherStats);
+      console.log(
+        "Teacher:",
+        teacherInfo
+      );
 
-      const owner = await contract.teacherOwner(id);
-      const skills = await contract.getSkills(id);
+      const tokenUri = await contract.tokenURI(numericTokenId);
 
-      console.log("Owner:", owner);
-      console.log("Skills:", skills);
+      console.log("========== NFT METADATA DEBUG ==========");
+      console.log("Token ID:", numericTokenId);
+      console.log("Token URI:", tokenUri);
+      console.log("========================================");
 
-      // Check mint price before formatEther
+      // ==========================================
+      // OWNER
+      // ==========================================
+
+      const owner =
+        await contract.ownerOf(
+          numericTokenId
+        );
+
+      console.log("=================================");
+      console.log("NFT TOKEN ID:", numericTokenId);
+      console.log("NFT OWNER:", owner);
+      const connectedAccount = await signer.getAddress();
+
+      console.log("CONNECTED WALLET:", connectedAccount);
+      console.log(
+        "OWNER MATCH:",
+        owner.toLowerCase() === connectedAccount.toLowerCase()
+      );
+      console.log("=================================");
+
+      console.log(
+        "Owner:",
+        owner
+      );
+
+      // ==========================================
+      // SKILLS
+      // ==========================================
+
+      let skills = [];
+
+      try {
+        skills =
+          await contract.getSkills(
+            numericTokenId
+          );
+      } catch (error) {
+        console.log(
+          "Skills not available:",
+          error
+        );
+      }
+
+      // ==========================================
+      // MINT PRICE
+      // ==========================================
+
       let mintPrice = "0";
 
       if (
         teacherInfo.mintPrice !== undefined &&
         teacherInfo.mintPrice !== null
       ) {
-        mintPrice = ethers.formatEther(teacherInfo.mintPrice);
+        mintPrice =
+          ethers.formatEther(
+            teacherInfo.mintPrice
+          );
       }
 
-      // Get marketplace
-      const marketplace = await getMarketplaceContract();
+      // ==========================================
+      // MARKETPLACE
+      // ==========================================
 
-      const listing = await marketplace.getListing(
-        Number(id)
+      const marketplace =
+        await getMarketplaceContract();
+
+      const listing =
+        await marketplace.getListing(
+          numericTokenId
+        );
+
+      console.log(
+        "Listing:",
+        listing
       );
-
-      console.log("Listing:", listing);
 
       let salePrice = "0";
 
@@ -129,17 +225,28 @@ function TeacherDetails() {
         listing.price !== undefined &&
         listing.price !== null
       ) {
-        salePrice = ethers.formatEther(listing.price);
+        salePrice =
+          ethers.formatEther(
+            listing.price
+          );
       }
 
-      // Get rental information
-      const rental = await getRentalContract();
+      // ==========================================
+      // RENTAL
+      // ==========================================
 
-      const rentalInfo = await rental.getRental(
-        Number(id)
+      const rental =
+        await getRentalContract();
+
+      const rentalInfo =
+        await rental.getRental(
+          numericTokenId
+        );
+
+      console.log(
+        "Rental Info:",
+        rentalInfo
       );
-
-      console.log("Rental Info:", rentalInfo);
 
       let rentPrice = "0";
 
@@ -152,39 +259,46 @@ function TeacherDetails() {
         );
       }
 
+      console.log("FINAL TEACHER OBJECT:", {
+        tokenId: numericTokenId,
+        name: teacherInfo[0],
+        subject: teacherInfo[1],
+        topic: teacherInfo[2],
+        specialization: teacherInfo[3],
+        price: mintPrice,
+        owner: owner,
+        skills: skills || [],
+        forSale: Boolean(listing[1]),
+        salePrice: salePrice,
+        forRent: Boolean(rentalInfo[1]),
+        rentPricePerDay: rentPrice
+      });
+
       setTeacher({
-        tokenId: Number(id),
+        tokenId: numericTokenId,
 
-        name: teacherInfo.name,
-        subject: teacherInfo.subject,
-        topic: teacherInfo.topic,
+        name: teacherInfo[0],
+        subject: teacherInfo[1],
+        topic: teacherInfo[2],
+        specialization: teacherInfo[3],
 
-        specialization:
-          teacherInfo.specialization,
-
-        level:
-          teacherInfo.level,
-
-        experience:
-          teacherInfo.experience?.toString() || "0",
+        // Your current Teacher struct doesn't contain these
+        level: "N/A",
+        experience: "N/A",
 
         price: mintPrice,
-
         owner: owner,
-
         skills: skills || [],
 
-        forSale:
-          Boolean(listing.active),
+        forSale: Boolean(listing[1]),
+        salePrice: salePrice,
 
-        salePrice:
-          salePrice,
+        forRent: Boolean(rentalInfo[1]),
+        rentPricePerDay: rentPrice
 
-        forRent:
-          Boolean(rentalInfo[1]),
 
-        rentPricePerDay:
-          rentPrice
+
+
       });
 
     } catch (error) {
@@ -197,34 +311,49 @@ function TeacherDetails() {
     } finally {
 
       setLoading(false);
-
     }
   };
 
-  const checkRentalAccess = async () => {
+
+
+  async function checkRentalAccess() {
     try {
-      if (!signer || !account || !id) {
-        setRentalExpiry(0);
+      if (!tokenId || !account) {
+        console.log(
+          "Skipping rental check:",
+          { tokenId, account }
+        );
         return;
       }
 
-      const rental = await getRentalContract();
+      const numericTokenId = Number(tokenId);
 
-      const expiry = await rental.getRentalExpiry(
-        Number(id),
-        account
-      );
+      if (Number.isNaN(numericTokenId)) {
+        console.error(
+          "Invalid tokenId for rental:",
+          tokenId
+        );
+        return;
+      }
 
-      setRentalExpiry(Number(expiry));
+      const rentalContract =
+        getRentalContract(signer);
 
-      console.log("Rental expiry:", Number(expiry));
+      const access =
+        await rentalContract.hasAccess(
+          numericTokenId,
+          account
+        );
+
+      setHasRentalAccess(access);
 
     } catch (error) {
-      console.error("Rental access error:", error);
-      setRentalExpiry(0);
+      console.error(
+        "Rental access error:",
+        error
+      );
     }
-  };
-
+  }
 
 
 
@@ -242,7 +371,7 @@ function TeacherDetails() {
 
   //     const active =
   //       await subscriptionContract.hasSubscription(
-  //         id,
+  //        tokenId,
   //         walletAddress
   //       );
 
@@ -255,32 +384,44 @@ function TeacherDetails() {
   //   }
   // };
 
-  const checkSubscription = async () => {
+  async function checkSubscription() {
     try {
-      if (!signer) {
-        setSubscriptionActive(false);
+      if (!tokenId || !account) {
+        console.log(
+          "Skipping subscription check:",
+          { tokenId, account }
+        );
         return;
       }
 
-      const subscriptionContract =
-        await getSubscriptionContract();
+      const numericTokenId = Number(tokenId);
 
-      const walletAddress =
-        await signer.getAddress();
+      if (Number.isNaN(numericTokenId)) {
+        console.error(
+          "Invalid tokenId for subscription:",
+          tokenId
+        );
+        return;
+      }
+
+      const contract =
+        getSubscriptionContract(signer);
 
       const active =
-        await subscriptionContract.hasSubscription(
-          id,
-          walletAddress
+        await contract.hasSubscription(
+          numericTokenId,
+          account
         );
 
-      setSubscriptionActive(active);
+      setHasSubscription(active);
 
-    } catch (err) {
-      console.error("Subscription check error:", err);
-      setSubscriptionActive(false);
+    } catch (error) {
+      console.error(
+        "Subscription check error:",
+        error
+      );
     }
-  };
+  }
 
   // const loadRating = async () => {
 
@@ -668,7 +809,7 @@ function TeacherDetails() {
         await marketplace.getAddress();
 
       console.log("Marketplace:", marketplaceAddress);
-      console.log("Token ID:", teacher.tokenId);
+      console.log("TokentokenId:", teacher.tokenId);
 
       const tx = await nftContract.approve(
         marketplaceAddress,
@@ -853,7 +994,7 @@ function TeacherDetails() {
       <div className="metadata-card">
         <h1>{teacher?.name}</h1>
 
-        <h3>Token ID</h3>
+        <h3>TokentokenId</h3>
         <p>{teacher?.tokenId}</p>
 
         <h3>Specialization</h3>

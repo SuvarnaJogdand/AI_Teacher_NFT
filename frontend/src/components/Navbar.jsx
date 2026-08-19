@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import WalletButton from "./WalletButton";
 
+
 function Navbar() {
   return (
     <nav className="navbar">
@@ -25,6 +26,9 @@ function Navbar() {
           My Rentals
         </Link>
 
+        <Link to="/teacher-dashboard">
+            Teacher Dashboard
+        </Link>
       </div>
 
       <WalletButton />

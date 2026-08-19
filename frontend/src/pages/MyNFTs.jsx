@@ -14,13 +14,24 @@ function MyNFTs() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadNFTs();
+    if (signer && walletAddress) {
+      loadNFTs();
+    } else {
+      setMyNFTs([]);
+      setLoading(false);
+    }
   }, [walletAddress, signer]);
 
   const loadNFTs = async () => {
     try {
+      setLoading(true);
+
+      console.log("=================================");
+      console.log("Loading My NFTs");
+      console.log("Wallet:", walletAddress);
+
       if (!walletAddress || !signer) {
-        setLoading(false);
+        setMyNFTs([]);
         return;
       }
 
@@ -30,42 +41,106 @@ function MyNFTs() {
         signer
       );
 
-      const tokenIds =
-        await contract.tokensOfOwner(walletAddress);
+      // Use the function used elsewhere in your project
+      const totalSupplyBN =
+        await contract.getTotalSupply();
+
+      const totalSupply =
+        Number(totalSupplyBN);
+
+      console.log("Total NFT supply:", totalSupply);
 
       const teachers = [];
 
-      for (const tokenId of tokenIds) {
+      // Token IDs in your project start from 1
+      for (
+        let tokenId = 1;
+        tokenId <= totalSupply;
+        tokenId++
+      ) {
+        try {
+          console.log(
+            `Checking ownership of token ${tokenId}`
+          );
 
-        if (tokenId == null) continue;
+          // Check REAL ERC721 ownership
+          const owner =
+            await contract.ownerOf(tokenId);
 
-        const [info, market, stats] =
-          await contract.getTeacher(tokenId);
+          console.log(
+            `Token ${tokenId} owner:`,
+            owner
+          );
 
-        teachers.push({
-          id: Number(tokenId),
+          // Compare addresses safely
+          if (
+            owner.toLowerCase() !==
+            walletAddress.toLowerCase()
+          ) {
+            continue;
+          }
 
-          name: info.name,
-          subject: info.subject,
-          specialization: info.specialization,
+          console.log(
+            `Token ${tokenId} belongs to current wallet`
+          );
 
-          level: Number(stats.level),
-          experience: Number(stats.experience),
+          const teacher =
+            await contract.getTeacher(tokenId);
 
-          price: ethers.formatEther(market.price),
-          forSale: market.forSale,
+          console.log("Teacher:", teacher);
 
-          rentPricePerDay: ethers.formatEther(
-            market.rentPricePerDay
-          ),
+          console.log("Teacher:", teacher);
 
-          forRent: market.forRent,
-        });
+          const price =
+            teacher.mintPrice != null
+              ? ethers.formatEther(teacher.mintPrice)
+              : "0";
+
+          teachers.push({
+            id: tokenId,
+            tokenId: tokenId,
+
+            name: teacher.name,
+            subject: teacher.subject,
+            specialization: teacher.specialization,
+
+            experience: teacher.specialization,
+            level: 0,
+
+            price:
+              teacher.mintPrice != null
+                ? ethers.formatEther(teacher.mintPrice)
+                : "0",
+
+            forSale: false,
+            rentPricePerDay: "0",
+            forRent: false,
+
+
+
+
+          });
+        } catch (error) {
+          console.log(
+            `Skipping token ${tokenId}:`,
+            error
+          );
+        }
       }
+
+      console.log(
+        "My owned NFTs:",
+        teachers
+      );
 
       setMyNFTs(teachers);
     } catch (error) {
-      console.error(error);
+      console.error(
+        "Error loading My NFTs:",
+        error
+      );
+
+      setMyNFTs([]);
     } finally {
       setLoading(false);
     }
@@ -99,7 +174,9 @@ function MyNFTs() {
       ) : myNFTs.length === 0 ? (
         <div className="empty-state">
           <h2>No NFTs Found</h2>
-          <p>Mint your first AI Teacher NFT.</p>
+          <p>
+            You don't currently own any AI Teacher NFTs.
+          </p>
         </div>
       ) : (
         <div className="nft-grid">

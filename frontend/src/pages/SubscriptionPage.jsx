@@ -410,47 +410,40 @@ function SubscriptionPage() {
 
 
 
+            console.log("========== CASHFREE REQUEST ==========");
+            console.log({
+                teacherId: Number(tokenId),
+                amount: Number(amount),
+                plan: planType,
+                studentWallet: walletAddress,
+            });
+
             const response =
                 await fetch(
-
                     "http://localhost:5000/api/payment/create-order",
-
                     {
-
                         method: "POST",
 
                         headers: {
-
-                            "Content-Type":
-                                "application/json"
-
+                            "Content-Type": "application/json"
                         },
 
-
                         body: JSON.stringify({
-
                             teacherId: Number(tokenId),
 
                             amount,
 
                             plan: planType,
 
-                            studentWallet:
-                                walletAddress,
+                            studentWallet: walletAddress,
 
-                            customerName:
-                                "Student",
+                            customerName: "Student",
 
-                            customerEmail:
-                                "student@test.com",
+                            customerEmail: "student@test.com",
 
-                            customerPhone:
-                                "9999999999"
-
+                            customerPhone: "9999999999"
                         })
-
                     }
-
                 );
 
 

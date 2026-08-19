@@ -1,7 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-
 import Navbar from "./components/Navbar";
-
 import Home from "./pages/Home";
 import CreateTeacher from "./pages/CreateTeacher";
 import TeacherDetails from "./pages/TeacherDetails";
@@ -15,6 +13,9 @@ import CountrySelector from "./pages/CountrySelector";
 import SubjectPage from "./pages/SubjectPage";
 import TopicPage from "./pages/TopicPage";
 import Statistics from "./pages/Statistics";
+import TeacherDashboard from "./pages/TeacherDashboard";
+import ManageTeacher from "./pages/ManageTeacher";
+import ManageTeacherDetails from "./pages/ManageTeacherDetails";
 
 function App() {
   return (
@@ -25,7 +26,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/create" element={<CreateTeacher />} />
-          <Route path="/teacher/:id" element={<TeacherDetails />} />
+          <Route path="/teacher/:tokenId" element={<TeacherDetails />} />
           <Route path="/edit-teacher/:id" element={<EditTeacher />} />
           <Route path="/my-nfts" element={<MyNFTs />} />
           <Route path="/login" element={<Login />} />
@@ -34,10 +35,15 @@ function App() {
           <Route path="/my-subscriptions" element={<MySubscriptionPage />} />
           <Route path="/my-rentals" element={<MyRentalsPage />} />
           <Route path="/country" element={<CountrySelector />} />
-          <Route path="/subject/:subject" element={<SubjectPage/>} />
-          <Route path="/subject/:subject/topic/:topic" element={<TopicPage/>} />
+          <Route path="/subject/:subject" element={<SubjectPage />} />
+          <Route path="/subject/:subject/topic/:topic" element={<TopicPage />} />
           <Route path="/statistics" element={<Statistics />} />
+          <Route path="/teacher-dashboard" element={<TeacherDashboard />} />
+          <Route path="/teacher/manage/:tokenId" element={<ManageTeacher />} />
+          <Route path="/manage-teacher" element={<ManageTeacher />} />
+          <Route path="/manage-teacher/:tokenId" element={<ManageTeacherDetails />} />
           
+
         </Routes>
       </div>
     </BrowserRouter>
