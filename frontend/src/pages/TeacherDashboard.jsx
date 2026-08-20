@@ -38,7 +38,9 @@ function TeacherDashboard() {
         throw new Error("MetaMask is not installed");
       }
 
-      const provider = new ethers.BrowserProvider(window.ethereum);
+      const provider = new ethers.BrowserProvider(
+        window.ethereum
+      );
 
       const contract = new ethers.Contract(
         NFT_CONTRACT,
@@ -46,18 +48,37 @@ function TeacherDashboard() {
         provider
       );
 
-      console.log("Connected teacher wallet:", walletAddress);
+      console.log(
+        "Connected teacher wallet:",
+        walletAddress
+      );
 
-      // Get all NFTs and find the ones owned by this wallet
-      const totalSupply = await contract.getTotalSupply();
+      // =====================================================
+      // GET TOTAL NFT SUPPLY
+      // =====================================================
 
-      console.log("Total NFT supply:", totalSupply.toString());
+      const totalSupply =
+        await contract.getTotalSupply();
+
+      console.log(
+        "Total NFT supply:",
+        totalSupply.toString()
+      );
+
+      // =====================================================
+      // FIND NFTs OWNED BY CONNECTED WALLET
+      // =====================================================
 
       const tokenIds = [];
 
-      for (let i = 1; i <= Number(totalSupply); i++) {
+      for (
+        let i = 0;
+        i < Number(totalSupply);
+        i++
+      ) {
         try {
-          const owner = await contract.ownerOf(i);
+          const owner =
+            await contract.ownerOf(i);
 
           console.log(
             `Token ${i} owner:`,
@@ -70,10 +91,10 @@ function TeacherDashboard() {
           ) {
             tokenIds.push(i);
           }
-        } catch (error) {
+        } catch (ownerError) {
           console.log(
             `Skipping token ${i}:`,
-            error.message
+            ownerError.message
           );
         }
       }
@@ -83,6 +104,10 @@ function TeacherDashboard() {
         tokenIds
       );
 
+      // =====================================================
+      // DASHBOARD TOTALS
+      // =====================================================
+
       const loadedTeachers = [];
 
       let totalStudents = 0;
@@ -90,46 +115,279 @@ function TeacherDashboard() {
       let totalReviews = 0;
       let ratingSum = 0;
 
+      // =====================================================
+      // LOAD EACH TEACHER
+      // =====================================================
+
       for (const id of tokenIds) {
         const tokenId = Number(id);
 
         try {
-          const teacherInfo = await contract.getTeacher(tokenId);
+          console.log(
+            "===================================="
+          );
 
-          console.log("Teacher data:", teacherInfo);
+          console.log(
+            "Loading teacher:",
+            tokenId
+          );
 
-          console.log("========== TEACHER DATA ==========");
+          // =================================================
+          // LOAD REVIEWS FROM BACKEND
+          // =================================================
+
+          let reviewCount = 0;
+          let averageRating = 0;
+
+          try {
+            /*
+             * IMPORTANT:
+             *
+             * If your backend route is:
+             *
+             * /api/reviews/rating/:tokenId
+             *
+             * change this URL to:
+             *
+             * http://localhost:5000/api/reviews/rating/${tokenId}
+             */
+
+            const REVIEW_API_URL =
+              `http://localhost:5000/api/reviews/${tokenId}`;
+
+            const reviewResponse =
+              await fetch(REVIEW_API_URL);
+
+            console.log(
+              `Review API status for token ${tokenId}:`,
+              reviewResponse.status
+            );
+
+            if (reviewResponse.ok) {
+              const reviewData =
+                await reviewResponse.json();
+
+              console.log(
+                `Reviews for token ${tokenId}:`,
+                reviewData
+              );
+
+              /*
+               * Support different possible backend formats:
+               *
+               * 1. [ review1, review2 ]
+               *
+               * 2. { reviews: [...] }
+               *
+               * 3. { count: 5, rating: 4.5 }
+               *
+               * 4. { reviewCount: 5, averageRating: 4.5 }
+               */
+
+              if (Array.isArray(reviewData)) {
+                const reviews = reviewData;
+
+                reviewCount =
+                  reviews.length;
+
+                if (reviews.length > 0) {
+                  const totalRating =
+                    reviews.reduce(
+                      (sum, review) =>
+                        sum +
+                        Number(
+                          review.rating || 0
+                        ),
+                      0
+                    );
+
+                  averageRating =
+                    totalRating /
+                    reviews.length;
+                }
+              } else {
+                const reviews =
+                  Array.isArray(
+                    reviewData.reviews
+                  )
+                    ? reviewData.reviews
+                    : [];
+
+                if (reviews.length > 0) {
+                  reviewCount =
+                    reviews.length;
+
+                  const totalRating =
+                    reviews.reduce(
+                      (sum, review) =>
+                        sum +
+                        Number(
+                          review.rating || 0
+                        ),
+                      0
+                    );
+
+                  averageRating =
+                    totalRating /
+                    reviews.length;
+                } else {
+                  reviewCount = Number(
+                    reviewData.reviewCount ??
+                    reviewData.count ??
+                    0
+                  );
+
+                  averageRating = Number(
+                    reviewData.averageRating ??
+                    reviewData.rating ??
+                    0
+                  );
+                }
+              }
+
+              console.log(
+                "FINAL REVIEW COUNT:",
+                reviewCount
+              );
+
+              console.log(
+                "FINAL AVERAGE RATING:",
+                averageRating
+              );
+            } else {
+              console.warn(
+                `Review API failed for token ${tokenId}`
+              );
+            }
+          } catch (reviewError) {
+            console.error(
+              `Failed to load reviews for token ${tokenId}:`,
+              reviewError
+            );
+          }
+
+          // =================================================
+          // LOAD TEACHER FROM BLOCKCHAIN
+          // =================================================
+
+          const result =
+            await contract.getTeacher(
+              tokenId
+            );
+
+          console.log(
+            "RAW getTeacher RESULT:",
+            result
+          );
+
+          const teacherInfo =
+            result[0];
+
+          const teacherMarket =
+            result[1];
+
+          const teacherStats =
+            result[2];
+
+          console.log("========== STUDENT DEBUG ==========");
           console.log("Token ID:", tokenId);
-
-          console.log("Teacher Info:", teacherInfo);
-          console.log("Teacher Market:", teacherMarket);
           console.log("Teacher Stats:", teacherStats);
 
-          console.log("Market price:", teacherMarket.price);
-          console.log("Rent price:", teacherMarket.rentPricePerDay);
+          console.log(
+            "totalStudents:",
+            teacherStats?.totalStudents
+          );
 
-          console.log("Stats revenue:", teacherStats.totalRevenue);
+          console.log(
+            "totalStudents [2]:",
+            teacherStats?.[2]
+          );
+
+          console.log(
+            "activeSubscribers:",
+            teacherStats?.activeSubscribers
+          );
+
+          console.log(
+            "activeSubscribers [3]:",
+            teacherStats?.[3]
+          );
 
           console.log("==================================");
+
+          console.log(
+            "========== TEACHER DATA =========="
+          );
+
+          console.log(
+            "Token ID:",
+            tokenId
+          );
+
+          console.log(
+            "Teacher Info:",
+            teacherInfo
+          );
+
+          console.log(
+            "Teacher Market:",
+            teacherMarket
+          );
+
+          console.log(
+            "Teacher Stats:",
+            teacherStats
+          );
+
+          // =================================================
+          // LOAD METADATA
+          // =================================================
 
           let metadata = null;
 
           try {
-            const tokenURI = await contract.tokenURI(tokenId);
+            const tokenURI =
+              await contract.tokenURI(
+                tokenId
+              );
+
+            console.log(
+              `Token ${tokenId} URI:`,
+              tokenURI
+            );
 
             if (tokenURI) {
-              let metadataURL = tokenURI;
+              let metadataURL =
+                tokenURI;
 
-              if (metadataURL.startsWith("ipfs://")) {
+              if (
+                metadataURL.startsWith(
+                  "ipfs://"
+                )
+              ) {
                 metadataURL =
                   "https://gateway.pinata.cloud/ipfs/" +
-                  metadataURL.replace("ipfs://", "");
+                  metadataURL.replace(
+                    "ipfs://",
+                    ""
+                  );
               }
 
-              const metadataResponse = await fetch(metadataURL);
+              const metadataResponse =
+                await fetch(
+                  metadataURL
+                );
 
-              if (metadataResponse.ok) {
-                metadata = await metadataResponse.json();
+              if (
+                metadataResponse.ok
+              ) {
+                metadata =
+                  await metadataResponse.json();
+
+                console.log(
+                  `Metadata for token ${tokenId}:`,
+                  metadata
+                );
               }
             }
           } catch (metadataError) {
@@ -139,52 +397,223 @@ function TeacherDashboard() {
             );
           }
 
+          // =================================================
+          // SAFE FIELD HELPERS
+          // =================================================
+
+          const formatEtherSafe = (
+            value
+          ) => {
+            try {
+              if (
+                value === undefined ||
+                value === null
+              ) {
+                return "0";
+              }
+
+              return ethers.formatEther(
+                value
+              );
+            } catch {
+              return "0";
+            }
+          };
+
+          const numberSafe = (
+            value
+          ) => {
+            try {
+              if (
+                value === undefined ||
+                value === null
+              ) {
+                return 0;
+              }
+
+              return Number(value);
+            } catch {
+              return 0;
+            }
+          };
+
+          // =================================================
+          // CREATE TEACHER OBJECT
+          // =================================================
+
           const teacher = {
             tokenId,
 
-            name: teacherInfo.name,
-            subject: teacherInfo.subject,
-            topic: teacherInfo.topic,
-            specialization: teacherInfo.specialization,
+            // -------------------------
+            // TEACHER INFO
+            // -------------------------
+
+            name:
+              teacherInfo?.name ??
+              teacherInfo?.[0] ??
+              "",
+
+            subject:
+              teacherInfo?.subject ??
+              teacherInfo?.[1] ??
+              "",
+
+            topic:
+              teacherInfo?.topic ??
+              teacherInfo?.[2] ??
+              "",
+
+            specialization:
+              teacherInfo?.specialization ??
+              teacherInfo?.[3] ??
+              "",
+
+            // -------------------------
+            // MARKET DATA
+            // -------------------------
 
             price:
-              teacherInfo.mintPrice != null
-                ? ethers.formatEther(teacherInfo.mintPrice)
-                : "0",
+              formatEtherSafe(
+                teacherMarket?.price ??
+                teacherMarket?.[0]
+              ),
 
-            forSale: false,
+            forSale:
+              Boolean(
+                teacherMarket?.forSale ??
+                teacherMarket?.[1] ??
+                false
+              ),
 
-            rentPricePerDay: "0",
-            forRent: false,
+            rentPricePerDay:
+              formatEtherSafe(
+                teacherMarket?.rentPricePerDay ??
+                teacherMarket?.[2]
+              ),
 
-            experience: 0,
-            level: 0,
+            forRent:
+              Boolean(
+                teacherMarket?.forRent ??
+                teacherMarket?.[3] ??
+                false
+              ),
 
-            rating: 0,
-            reviewCount: 0,
+            // -------------------------
+            // TEACHER STATS
+            // -------------------------
 
-            totalStudents: 0,
-            activeSubscribers: 0,
+            experience:
+              numberSafe(
+                teacherStats?.experience ??
+                teacherStats?.[0]
+              ),
 
-            totalRevenue: "0",
+            level:
+              numberSafe(
+                teacherStats?.level ??
+                teacherStats?.[1]
+              ),
 
-            lessonsCompleted: 0,
-            questionsAnswered: 0,
+            /*
+             * Reviews and rating are coming
+             * from MongoDB/backend because
+             * your submitReview() uses:
+             *
+             * POST /api/reviews
+             */
 
-            likes: 0,
-            profileViews: 0,
+            rating:
+              averageRating,
 
-            successRate: 0,
+            reviewCount:
+              reviewCount,
+
+            totalStudents:
+              numberSafe(
+                teacherStats?.totalStudents ??
+                teacherStats?.[2]
+              ),
+
+            activeSubscribers:
+              numberSafe(
+                teacherStats?.activeSubscribers ??
+                teacherStats?.[3]
+              ),
+
+            totalRevenue:
+              formatEtherSafe(
+                teacherStats?.totalRevenue ??
+                teacherStats?.[4]
+              ),
+
+            lessonsCompleted:
+              numberSafe(
+                teacherStats?.lessonsCompleted ??
+                teacherStats?.[5]
+              ),
+
+            questionsAnswered:
+              numberSafe(
+                teacherStats?.questionsAnswered ??
+                teacherStats?.[6]
+              ),
+
+            likes:
+              numberSafe(
+                teacherStats?.likes ??
+                teacherStats?.[7]
+              ),
+
+            profileViews:
+              numberSafe(
+                teacherStats?.profileViews ??
+                teacherStats?.[8]
+              ),
+
+            successRate:
+              numberSafe(
+                teacherStats?.successRate ??
+                teacherStats?.[9]
+              ),
+
+            averageResponseTime:
+              numberSafe(
+                teacherStats?.averageResponseTime ??
+                teacherStats?.[10]
+              ),
+
+            // -------------------------
+            // IPFS METADATA
+            // -------------------------
 
             metadata,
           };
 
-          loadedTeachers.push(teacher);
+          console.log(
+            "FINAL TEACHER OBJECT:",
+            teacher
+          );
 
-          totalStudents += teacher.totalStudents;
-          totalSubscribers += teacher.activeSubscribers;
-          totalReviews += teacher.reviewCount;
-          ratingSum += teacher.rating;
+          loadedTeachers.push(
+            teacher
+          );
+
+          // =================================================
+          // UPDATE DASHBOARD TOTALS
+          // =================================================
+
+          totalStudents +=
+            teacher.totalStudents;
+
+          totalSubscribers +=
+            teacher.activeSubscribers;
+
+          totalReviews +=
+            teacher.reviewCount;
+
+          ratingSum +=
+            teacher.rating;
+
         } catch (teacherError) {
           console.error(
             `Failed to load teacher ${tokenId}`,
@@ -193,20 +622,78 @@ function TeacherDashboard() {
         }
       }
 
-      setTeachers(loadedTeachers);
+      // =====================================================
+      // SET TEACHERS
+      // =====================================================
+
+      setTeachers(
+        loadedTeachers
+      );
+
+      // =====================================================
+      // SET DASHBOARD STATS
+      // =====================================================
 
       setStats({
-        teachers: loadedTeachers.length,
-        students: totalStudents,
-        subscribers: totalSubscribers,
-        reviews: totalReviews,
+        teachers:
+          loadedTeachers.length,
+
+        students:
+          totalStudents,
+
+        subscribers:
+          totalSubscribers,
+
+        reviews:
+          totalReviews,
+
         rating:
           loadedTeachers.length > 0
-            ? (ratingSum / loadedTeachers.length).toFixed(1)
-            : 0,
+            ? (
+              ratingSum /
+              loadedTeachers.length
+            ).toFixed(1)
+            : "0.0",
       });
+
+      console.log(
+        "========== FINAL DASHBOARD STATS =========="
+      );
+
+      console.log(
+        "Teachers:",
+        loadedTeachers.length
+      );
+
+      console.log(
+        "Students:",
+        totalStudents
+      );
+
+      console.log(
+        "Subscribers:",
+        totalSubscribers
+      );
+
+      console.log(
+        "Reviews:",
+        totalReviews
+      );
+
+      console.log(
+        "Rating:",
+        ratingSum /
+        Math.max(
+          loadedTeachers.length,
+          1
+        )
+      );
+
     } catch (err) {
-      console.error("Teacher dashboard error:", err);
+      console.error(
+        "Teacher dashboard error:",
+        err
+      );
 
       setError(
         err?.reason ||
@@ -219,10 +706,15 @@ function TeacherDashboard() {
     }
   }
 
+  // =====================================================
+  // WALLET NOT CONNECTED
+  // =====================================================
+
   if (!walletAddress) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
+
           <h2 className="text-2xl font-bold mb-3">
             Teacher Dashboard
           </h2>
@@ -230,20 +722,31 @@ function TeacherDashboard() {
           <p className="text-gray-500">
             Please connect your wallet to continue.
           </p>
+
         </div>
       </div>
     );
   }
 
+  // =====================================================
+  // LOADING
+  // =====================================================
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
+
         <p className="text-lg">
           Loading teacher dashboard...
         </p>
+
       </div>
     );
   }
+
+  // =====================================================
+  // UI
+  // =====================================================
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -251,7 +754,9 @@ function TeacherDashboard() {
       <div className="max-w-7xl mx-auto">
 
         {/* HEADER */}
+
         <div className="mb-8">
+
           <h1 className="text-3xl font-bold">
             Teacher Dashboard
           </h1>
@@ -263,9 +768,11 @@ function TeacherDashboard() {
           <p className="text-xs text-gray-400 mt-2 break-all">
             Wallet: {walletAddress}
           </p>
+
         </div>
 
         {/* ERROR */}
+
         {error && (
           <div className="bg-red-100 text-red-700 p-4 rounded-lg mb-6">
             {error}
@@ -273,6 +780,7 @@ function TeacherDashboard() {
         )}
 
         {/* STAT CARDS */}
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5 mb-8">
 
           <StatCard
@@ -303,11 +811,13 @@ function TeacherDashboard() {
         </div>
 
         {/* TEACHERS */}
+
         <div className="bg-white rounded-xl shadow-sm p-6">
 
           <div className="flex justify-between items-center mb-6">
 
             <div>
+
               <h2 className="text-2xl font-semibold">
                 My AI Teachers
               </h2>
@@ -315,11 +825,13 @@ function TeacherDashboard() {
               <p className="text-gray-500 text-sm">
                 Teachers owned by your connected wallet
               </p>
+
             </div>
 
           </div>
 
           {teachers.length === 0 ? (
+
             <div className="text-center py-16">
 
               <p className="text-gray-500 mb-4">
@@ -328,7 +840,8 @@ function TeacherDashboard() {
 
               <button
                 onClick={() => {
-                  window.location.href = "/create-teacher";
+                  window.location.href =
+                    "/create-teacher";
                 }}
                 className="px-5 py-2 bg-blue-600 text-white rounded-lg"
               >
@@ -336,18 +849,21 @@ function TeacherDashboard() {
               </button>
 
             </div>
+
           ) : (
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
-              {teachers.map((teacher) => (
+              {teachers.map(
+                (teacher) => (
 
-                <TeacherCard
-                  key={teacher.tokenId}
-                  teacher={teacher}
-                />
+                  <TeacherCard
+                    key={teacher.tokenId}
+                    teacher={teacher}
+                  />
 
-              ))}
+                )
+              )}
 
             </div>
 
@@ -361,12 +877,14 @@ function TeacherDashboard() {
   );
 }
 
+// =====================================================
+// STAT CARD
+// =====================================================
 
-/* =====================================================
-   STAT CARD
-===================================================== */
-
-function StatCard({ title, value }) {
+function StatCard({
+  title,
+  value,
+}) {
   return (
     <div className="bg-white rounded-xl shadow-sm p-5">
 
@@ -382,17 +900,22 @@ function StatCard({ title, value }) {
   );
 }
 
+// =====================================================
+// TEACHER CARD
+// =====================================================
 
-/* =====================================================
-   TEACHER CARD
-===================================================== */
-
-function TeacherCard({ teacher }) {
-
+function TeacherCard({
+  teacher,
+}) {
   const image =
-    teacher.metadata?.image?.startsWith("ipfs://")
+    teacher.metadata?.image?.startsWith(
+      "ipfs://"
+    )
       ? "https://gateway.pinata.cloud/ipfs/" +
-      teacher.metadata.image.replace("ipfs://", "")
+      teacher.metadata.image.replace(
+        "ipfs://",
+        ""
+      )
       : teacher.metadata?.image;
 
   return (
@@ -401,17 +924,23 @@ function TeacherCard({ teacher }) {
       {/* IMAGE */}
 
       {image ? (
+
         <img
           src={image}
           alt={teacher.name}
           className="w-full h-48 object-cover"
         />
+
       ) : (
+
         <div className="w-full h-48 bg-gray-200 flex items-center justify-center">
+
           <span className="text-gray-500">
             No Image
           </span>
+
         </div>
+
       )}
 
       {/* CONTENT */}
@@ -443,7 +972,8 @@ function TeacherCard({ teacher }) {
         </p>
 
         <p className="text-sm text-gray-500">
-          Specialization: {teacher.specialization}
+          Specialization:{" "}
+          {teacher.specialization}
         </p>
 
         {/* STATS */}
@@ -451,6 +981,7 @@ function TeacherCard({ teacher }) {
         <div className="grid grid-cols-2 gap-3 mt-5">
 
           <div className="bg-gray-50 p-3 rounded">
+
             <p className="text-xs text-gray-500">
               Students
             </p>
@@ -458,9 +989,11 @@ function TeacherCard({ teacher }) {
             <p className="font-semibold">
               {teacher.totalStudents}
             </p>
+
           </div>
 
           <div className="bg-gray-50 p-3 rounded">
+
             <p className="text-xs text-gray-500">
               Subscribers
             </p>
@@ -468,9 +1001,11 @@ function TeacherCard({ teacher }) {
             <p className="font-semibold">
               {teacher.activeSubscribers}
             </p>
+
           </div>
 
           <div className="bg-gray-50 p-3 rounded">
+
             <p className="text-xs text-gray-500">
               Reviews
             </p>
@@ -478,16 +1013,22 @@ function TeacherCard({ teacher }) {
             <p className="font-semibold">
               {teacher.reviewCount}
             </p>
+
           </div>
 
           <div className="bg-gray-50 p-3 rounded">
+
             <p className="text-xs text-gray-500">
               Rating
             </p>
 
             <p className="font-semibold">
-              ⭐ {teacher.rating}
+              ⭐{" "}
+              {Number(
+                teacher.rating || 0
+              ).toFixed(1)}
             </p>
+
           </div>
 
         </div>
@@ -498,7 +1039,9 @@ function TeacherCard({ teacher }) {
 
           <div className="flex justify-between text-sm">
 
-            <span>Sale</span>
+            <span>
+              Sale
+            </span>
 
             <span
               className={
@@ -507,14 +1050,18 @@ function TeacherCard({ teacher }) {
                   : "text-gray-400"
               }
             >
-              {teacher.forSale ? "Listed" : "Not Listed"}
+              {teacher.forSale
+                ? "Listed"
+                : "Not Listed"}
             </span>
 
           </div>
 
           <div className="flex justify-between text-sm">
 
-            <span>Rental</span>
+            <span>
+              Rental
+            </span>
 
             <span
               className={
@@ -523,7 +1070,9 @@ function TeacherCard({ teacher }) {
                   : "text-gray-400"
               }
             >
-              {teacher.forRent ? "Available" : "Not Available"}
+              {teacher.forRent
+                ? "Available"
+                : "Not Available"}
             </span>
 
           </div>

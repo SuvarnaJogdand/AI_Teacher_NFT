@@ -1,179 +1,454 @@
 import { useEffect, useState } from "react";
 import { ethers } from "ethers";
+import { Link } from "react-router-dom";
+
 import TeacherCard from "../components/TeacherCard";
 
 import abi from "../contracts/AITeacherNFT.json";
 import { NFT_CONTRACT } from "../contracts/config";
-import { getMarketplaceContract, getRentalContract } from "../contracts/contracts";
-import { groupBySubject } from "../utils/groupTeachers";
-import { Link } from "react-router-dom";
 
+import {
+  getMarketplaceContract,
+  getRentalContract,
+} from "../contracts/contracts";
+
+import { groupBySubject } from "../utils/groupTeachers";
 
 function Home() {
   const [teachers, setTeachers] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSubject, setSelectedSubject] = useState("All");
   const [sortBy, setSortBy] = useState("newest");
-  const groupedSubjects = groupBySubject(teachers);
+  const [loading, setLoading] = useState(true);
+
+  // =====================================================
+  // LOAD TEACHERS WHEN HOME OPENS
+  // =====================================================
 
   useEffect(() => {
     loadTeachers();
   }, []);
 
+  // =====================================================
+  // LOAD ALL TEACHERS
+  // =====================================================
+
   async function loadTeachers() {
-
     try {
-      if (!window.ethereum) return;
+      setLoading(true);
 
+      if (!window.ethereum) {
+        console.log("MetaMask not installed");
+        setLoading(false);
+        return;
+      }
 
-      const provider =
-        new ethers.BrowserProvider(window.ethereum);
+      const provider = new ethers.BrowserProvider(
+        window.ethereum
+      );
 
+      // IMPORTANT:
+      // Make sure AITeacherNFT.json is the NEW ABI
+      // generated after your latest deployment.
       const contract = new ethers.Contract(
         NFT_CONTRACT,
-        abi.abi,
+        abi.abi || abi,
         provider
       );
 
-      const totalSupply =
-        await contract.getTotalSupply();
+      // =================================================
+      // TOTAL SUPPLY
+      // =================================================
+
+      const totalSupply = Number(
+        await contract.getTotalSupply()
+      );
 
       console.log(
-        "Total Supply:",
-        totalSupply.toString()
+        "===================================="
+      );
+
+      console.log(
+        "Total NFT supply:",
+        totalSupply
+      );
+
+      console.log(
+        "===================================="
       );
 
       const teachersData = [];
 
+      // =================================================
+      // YOUR TeacherMint STARTS TOKEN IDS FROM 0
+      //
+      // tokenCounter initially = 0
+      // first NFT = token 0
+      // second NFT = token 1
+      // etc.
+      // =================================================
+
       for (
-        let tokenId = 1;
-        tokenId <= Number(totalSupply);
+        let tokenId = 0;
+        tokenId < totalSupply;
         tokenId++
       ) {
         try {
-          const teacher =
-            await contract.getTeacher(tokenId);
+          console.log(
+            "Loading teacher token:",
+            tokenId
+          );
 
-          const tokenURI =
-            await contract.tokenURI(tokenId);
+          // =================================================
+          // GET TEACHER
+          // =================================================
 
-          console.log("TokenURI:", tokenURI);
+          const result = await contract.getTeacher(
+            tokenId
+          );
 
-          const owner =
-            await contract.teacherOwner(tokenId);
+          const teacherInfo = result[0];
+          const teacherMarket = result[1];
 
-          const marketplace =
-            await getMarketplaceContract();
+          console.log(
+            "Teacher Info:",
+            teacherInfo
+          );
 
-          const rental =
-            await getRentalContract();
+          console.log(
+            "Teacher Market:",
+            teacherMarket
+          );
 
-          const listing =
-            await marketplace.getListing(tokenId);
+          // =================================================
+          // OWNER
+          // =================================================
 
-          const rentalInfo =
-            await rental.getRental(tokenId);
+          let owner = "";
 
-          console.log("Listing:", listing);
-          console.log("Rental:", rentalInfo);
-
-          let metadata = {};
-          //console.log("TokenURI:", tokenURI);
           try {
-            console.log("TokenURI =", tokenURI);
-            const response = await fetch(tokenURI);
-
-            console.log("Response status:", response.status);
-
-            metadata = await response.json();
-            console.log("Metadata Image:", metadata.image);
-
-            //console.log("Metadata:", metadata);
-          } catch (err) {
-            console.log("Metadata error:", err);
+            owner = await contract.teacherOwner(
+              tokenId
+            );
+          } catch (ownerError) {
+            console.log(
+              `Owner unavailable for token ${tokenId}`,
+              ownerError
+            );
           }
 
-          teachersData.push({
+          // =================================================
+          // METADATA
+          // =================================================
+
+          let metadata = {};
+
+          try {
+            const tokenURI =
+              await contract.tokenURI(tokenId);
+
+            console.log(
+              `TokenURI ${tokenId}:`,
+              tokenURI
+            );
+
+            let metadataURL = tokenURI;
+
+            // Convert IPFS URI
+            if (
+              metadataURL &&
+              metadataURL.startsWith("ipfs://")
+            ) {
+              metadataURL =
+                "https://gateway.pinata.cloud/ipfs/" +
+                metadataURL.replace(
+                  "ipfs://",
+                  ""
+                );
+            }
+
+            if (metadataURL) {
+              const response = await fetch(
+                metadataURL
+              );
+
+              console.log(
+                `Metadata response ${tokenId}:`,
+                response.status
+              );
+
+              if (response.ok) {
+                metadata =
+                  await response.json();
+
+                console.log(
+                  `Metadata ${tokenId}:`,
+                  metadata
+                );
+              }
+            }
+          } catch (metadataError) {
+            console.log(
+              `Metadata unavailable for token ${tokenId}`,
+              metadataError
+            );
+          }
+
+          // =================================================
+          // MARKETPLACE
+          // =================================================
+
+          let listing = {
+            price: 0n,
+            active: false,
+          };
+
+          try {
+            const marketplace =
+              await getMarketplaceContract();
+
+            const listingResult =
+              await marketplace.getListing(
+                tokenId
+              );
+
+            listing = {
+              price: listingResult[0],
+              active: listingResult[1],
+            };
+
+            console.log(
+              `Listing for ${tokenId}:`,
+              listing
+            );
+          } catch (marketError) {
+            console.log(
+              `Marketplace unavailable for ${tokenId}`,
+              marketError
+            );
+          }
+
+          // =================================================
+          // RENTAL
+          // =================================================
+
+          let rentalInfo = {
+            pricePerDay: 0n,
+            available: false,
+          };
+
+          try {
+            const rental =
+              await getRentalContract();
+
+            const rentalResult =
+              await rental.getRental(
+                tokenId
+              );
+
+            rentalInfo = {
+              pricePerDay: rentalResult[0],
+              available: rentalResult[1],
+            };
+
+            console.log(
+              `Rental for ${tokenId}:`,
+              rentalInfo
+            );
+          } catch (rentalError) {
+            console.log(
+              `Rental unavailable for ${tokenId}`,
+              rentalError
+            );
+          }
+
+          // =================================================
+          // IMAGE
+          // =================================================
+
+          let imageUrl = "";
+
+          if (metadata.image) {
+            imageUrl = metadata.image;
+
+            if (
+              imageUrl.startsWith("ipfs://")
+            ) {
+              imageUrl =
+                "https://gateway.pinata.cloud/ipfs/" +
+                imageUrl.replace(
+                  "ipfs://",
+                  ""
+                );
+            }
+          }
+
+          // =================================================
+          // CREATE TEACHER OBJECT
+          // =================================================
+
+          const teacher = {
             id: tokenId,
-            tokenId,
 
-            name: teacher.name,
-            subject: teacher.subject,
-            topic: teacher.topic,
-            specialization: teacher.specialization,
+            tokenId: tokenId,
 
+            name:
+              teacherInfo.name || "",
+
+            subject:
+              teacherInfo.subject?.trim() || "",
+
+            topic:
+              teacherInfo.topic || "",
+
+            specialization:
+              teacherInfo.specialization || "",
+
+            // TeacherMarket.price
             mintPrice:
-              teacher.mintPrice?.toString() || "0",
+              teacherMarket.price != null
+                ? teacherMarket.price.toString()
+                : "0",
 
-            imageUrl: metadata.image
-              ? metadata.image.replace(
-                "ipfs://",
-                "https://gateway.pinata.cloud/ipfs/"
-              )
-              : "",
-            description: metadata.description || "",
+            // Metadata
+            imageUrl: imageUrl,
 
-            ownerWallet: owner,
+            description:
+              metadata.description || "",
 
-            forSale: listing[1],
-            salePrice: listing[0]
-              ? ethers.formatEther(listing[0])
-              : "0",
+            ownerWallet:
+              owner,
 
-            forRent: rentalInfo[1],
-            rentPricePerDay: rentalInfo[0]
-              ? ethers.formatEther(rentalInfo[0])
-              : "0",
-          });
-        } catch (err) {
+            // Marketplace
+            forSale:
+              Boolean(listing.active),
+
+            salePrice:
+              listing.price != null &&
+                listing.price > 0n
+                ? ethers.formatEther(
+                  listing.price
+                )
+                : "0",
+
+            // Rental
+            forRent:
+              Boolean(rentalInfo.available),
+
+            rentPricePerDay:
+              rentalInfo.pricePerDay != null &&
+                rentalInfo.pricePerDay > 0n
+                ? ethers.formatEther(
+                  rentalInfo.pricePerDay
+                )
+                : "0",
+          };
+
           console.log(
-            "Skipping token",
-            tokenId,
-            err.message
+            "Loaded teacher:",
+            teacher
+          );
+
+          teachersData.push(
+            teacher
+          );
+        } catch (error) {
+          console.error(
+            `Skipping token ${tokenId}:`,
+            error
           );
         }
       }
 
+      // =================================================
+      // FINISHED
+      // =================================================
+
       console.log(
-        "Teachers Loaded:",
+        "===================================="
+      );
+
+      console.log(
+        "========== TEACHERS LOADED =========="
+      );
+
+      console.log(
         teachersData
       );
 
-      setTeachers(teachersData);
-
-      // Save teachers for SubjectPage
-      localStorage.setItem(
-        "teachers",
-        JSON.stringify(teachersData)
+      console.log(
+        "===================================="
       );
+
+      setTeachers(
+        teachersData
+      );
+
+      // Save for SubjectPage
+      try {
+        localStorage.setItem(
+          "teachers",
+          JSON.stringify(
+            teachersData
+          )
+        );
+      } catch (storageError) {
+        console.log(
+          "Could not save teachers to localStorage:",
+          storageError
+        );
+      }
     } catch (error) {
       console.error(
         "Error loading teachers:",
         error
       );
+    } finally {
+      setLoading(false);
     }
-
-
   }
+
+  // =====================================================
+  // GROUP SUBJECTS
+  // =====================================================
+
+  const groupedSubjects =
+    groupBySubject(teachers);
+
+  // =====================================================
+  // SUBJECT LIST
+  // =====================================================
 
   const subjects = [
     "All",
-    ...Object.keys(groupedSubjects)
+    ...Object.keys(
+      groupedSubjects
+    ),
   ];
+
+  // =====================================================
+  // FILTER TEACHERS
+  // =====================================================
 
   const filteredTeachers =
     teachers.filter((teacher) => {
+      const name =
+        teacher.name || "";
+
+      const subject =
+        teacher.subject || "";
+
+      const search =
+        searchTerm.toLowerCase();
+
       const matchesSearch =
-        teacher.name
+        name
           .toLowerCase()
-          .includes(
-            searchTerm.toLowerCase()
-          );
+          .includes(search);
 
       const matchesSubject =
         selectedSubject === "All" ||
-        teacher.subject ===
-        selectedSubject;
+        subject === selectedSubject;
 
       return (
         matchesSearch &&
@@ -181,6 +456,9 @@ function Home() {
       );
     });
 
+  // =====================================================
+  // SORT TEACHERS
+  // =====================================================
 
   const sortedTeachers = [
     ...filteredTeachers,
@@ -188,116 +466,223 @@ function Home() {
 
   switch (sortBy) {
     case "name-asc":
-      sortedTeachers.sort((a, b) =>
-        a.name.localeCompare(b.name)
+      sortedTeachers.sort(
+        (a, b) =>
+          a.name.localeCompare(
+            b.name
+          )
       );
       break;
 
-
     case "name-desc":
-      sortedTeachers.sort((a, b) =>
-        b.name.localeCompare(a.name)
+      sortedTeachers.sort(
+        (a, b) =>
+          b.name.localeCompare(
+            a.name
+          )
       );
       break;
 
     case "oldest":
       sortedTeachers.sort(
-        (a, b) => a.id - b.id
+        (a, b) =>
+          a.tokenId - b.tokenId
       );
       break;
 
+    case "newest":
     default:
       sortedTeachers.sort(
-        (a, b) => b.id - a.id
+        (a, b) =>
+          b.tokenId - a.tokenId
       );
-
-
+      break;
   }
+
+  // =====================================================
+  // UI
+  // =====================================================
 
   return (
     <>
+      {/* =================================================
+          HERO
+      ================================================= */}
+
       <div className="hero">
-        <h1>🎓 AI Teacher NFT Marketplace</h1>
+        <h1>
+          🎓 AI Teacher NFT Marketplace
+        </h1>
+
         <p>
           Create, manage and explore AI Teacher NFTs
         </p>
       </div>
 
+      {/* =================================================
+          FILTERS
+      ================================================= */}
 
       <div className="filters">
-        ...
-      </div>
 
+        {/* SEARCH */}
 
-      {/* SUBJECT SECTION - ADD HERE */}
+        <input
+          type="text"
+          placeholder="Search teachers..."
+          value={searchTerm}
+          onChange={(e) =>
+            setSearchTerm(
+              e.target.value
+            )
+          }
+        />
 
-      <div className="subject-grid">
+        {/* SUBJECT */}
 
-        {
-          Object.keys(groupedSubjects).map((subject) => (
-
-            <div
-              key={subject}
-              className="subject-card"
-            >
-
-              <h2>
+        <select
+          value={selectedSubject}
+          onChange={(e) =>
+            setSelectedSubject(
+              e.target.value
+            )
+          }
+        >
+          {subjects.map(
+            (subject) => (
+              <option
+                key={subject}
+                value={subject}
+              >
                 {subject}
-              </h2>
+              </option>
+            )
+          )}
+        </select>
 
+        {/* SORT */}
 
-              <p>
-                {groupedSubjects[subject].length} Teachers
-              </p>
+        <select
+          value={sortBy}
+          onChange={(e) =>
+            setSortBy(
+              e.target.value
+            )
+          }
+        >
+          <option value="newest">
+            Newest
+          </option>
 
+          <option value="oldest">
+            Oldest
+          </option>
 
-              {/* <Link
-                to={`/subject/${subject}`}
-              > */}
-              <Link to={`/subject/${encodeURIComponent(subject)}`}>
-                <button>Explore</button>
-              </Link>
+          <option value="name-asc">
+            Name A-Z
+          </option>
 
-            </div>
-
-          ))
-        }
+          <option value="name-desc">
+            Name Z-A
+          </option>
+        </select>
 
       </div>
 
+      {/* =================================================
+          LOADING
+      ================================================= */}
 
+      {loading ? (
+        <div className="loading">
+          <p>
+            Loading AI Teachers...
+          </p>
+        </div>
+      ) : null}
 
-      {/* TEACHER SECTION */}
+      {/* =================================================
+          SUBJECT SECTION
+      ================================================= */}
 
-      {
+      {!loading &&
+        Object.keys(
+          groupedSubjects
+        ).length > 0 && (
+          <div className="subject-grid">
+
+            {Object.keys(
+              groupedSubjects
+            ).map((subject) => (
+
+              <div
+                key={subject}
+                className="subject-card"
+              >
+
+                <h2>
+                  {subject}
+                </h2>
+
+                <p>
+                  {
+                    groupedSubjects[
+                      subject
+                    ].length
+                  }{" "}
+                  Teachers
+                </p>
+
+                <Link
+                  to={`/subject/${encodeURIComponent(
+                    subject
+                  )}`}
+                >
+                  <button>
+                    Explore
+                  </button>
+                </Link>
+
+              </div>
+
+            ))}
+
+          </div>
+        )}
+
+      {/* =================================================
+          TEACHER SECTION
+      ================================================= */}
+
+      {!loading &&
         sortedTeachers.length === 0 ? (
 
-          <p>
-            No AI Teachers found.
-          </p>
+        <p>
+          No AI Teachers found.
+        </p>
 
-        ) : (
+      ) : (
 
+        !loading && (
           <div className="teacher-grid">
 
-            {
-              sortedTeachers.map((teacher) => (
+            {sortedTeachers.map(
+              (teacher) => (
 
                 <TeacherCard
                   key={teacher.tokenId}
                   teacher={teacher}
                 />
 
-              ))
-            }
+              )
+            )}
 
           </div>
-
         )
-      }
 
-
+      )}
     </>
   );
 }
+
 export default Home;

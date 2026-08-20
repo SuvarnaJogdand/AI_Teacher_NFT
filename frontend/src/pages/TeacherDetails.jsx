@@ -248,31 +248,95 @@ function TeacherDetails() {
         rentalInfo
       );
 
+      console.log("========== CONTRACT RESULT DEBUG ==========");
+
+      console.log("TEACHER INFO:", teacherInfo);
+      console.log("TEACHER INFO LENGTH:", teacherInfo?.length);
+
+      console.log("LISTING:", listing);
+      console.log("LISTING LENGTH:", listing?.length);
+
+      console.log("RENTAL INFO:", rentalInfo);
+      console.log("RENTAL INFO LENGTH:", rentalInfo?.length);
+
+      console.log("============================================");
+
       let rentPrice = "0";
 
-      if (
-        rentalInfo[0] !== undefined &&
-        rentalInfo[0] !== null
-      ) {
-        rentPrice = ethers.formatEther(
-          rentalInfo[0]
-        );
+      // if (
+      //   rentalInfo[0] !== undefined &&
+      //   rentalInfo[0] !== null
+      // ) {
+      //   rentPrice = ethers.formatEther(
+      //     rentalInfo[0]
+      //   );
+      // }
+
+      if (rentalInfo && rentalInfo.length > 0) {
+        rentPrice = ethers.formatEther(rentalInfo[0]);
       }
 
-      console.log("FINAL TEACHER OBJECT:", {
+      // console.log("FINAL TEACHER OBJECT:", {
+      //   tokenId: numericTokenId,
+      //   name: teacherInfo[0],
+      //   subject: teacherInfo[1],
+      //   topic: teacherInfo[2],
+      //   specialization: teacherInfo[3],
+      //   price: mintPrice,
+      //   owner: owner,
+      //   skills: skills || [],
+      //   //forSale: Boolean(listing[1]),
+      //   forSale: listing && listing.length > 1
+      //     ? Boolean(listing[1])
+      //     : false,
+      //   salePrice: salePrice,
+      //   //forRent: Boolean(rentalInfo[1]),
+      //   forRent: rentalInfo && rentalInfo.length > 1
+      //     ? Boolean(rentalInfo[1])
+      //     : false,
+      //   rentPricePerDay: rentPrice
+      // });
+
+      console.log("FINAL DEBUG:");
+      console.log("teacherInfo:", teacherInfo);
+      console.log("teacherInfo length:", teacherInfo?.length);
+      console.log("listing:", listing);
+      console.log("listing length:", listing?.length);
+      console.log("rentalInfo:", rentalInfo);
+      console.log("rentalInfo length:", rentalInfo?.length);
+
+      const teacherObject = {
         tokenId: numericTokenId,
-        name: teacherInfo[0],
-        subject: teacherInfo[1],
-        topic: teacherInfo[2],
-        specialization: teacherInfo[3],
+
+        name: teacherInfo?.[0] ?? "",
+        subject: teacherInfo?.[1] ?? "",
+        topic: teacherInfo?.[2] ?? "",
+
+        // TEMPORARILY remove teacherInfo[3]
+        specialization: "",
+
         price: mintPrice,
         owner: owner,
         skills: skills || [],
-        forSale: Boolean(listing[1]),
+
+        forSale:
+          listing && listing.length > 1
+            ? Boolean(listing[1])
+            : false,
+
         salePrice: salePrice,
-        forRent: Boolean(rentalInfo[1]),
+
+        forRent:
+          rentalInfo && rentalInfo.length > 1
+            ? Boolean(rentalInfo[1])
+            : false,
+
         rentPricePerDay: rentPrice
-      });
+      };
+
+      console.log("FINAL TEACHER OBJECT:", teacherObject);
+
+      setTeacher(teacherObject);
 
       setTeacher({
         tokenId: numericTokenId,
